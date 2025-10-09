@@ -21,6 +21,10 @@ namespace TrainingProgram.Api.Models
         [MaxLength(100)]
         public string CoachName { get; set; }
 
+        // The ID of the user who owns this macrocycle. This create a link in te SupaBase Authentication
+        [Required]
+        public string UserId { get; set; }
+
         // The list of weekly training blocks (microcycles)
         public ICollection<Microcycle> Microcycles { get; set; } = new List<Microcycle>();
 

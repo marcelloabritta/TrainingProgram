@@ -14,6 +14,9 @@ namespace TrainingProgram.Api.Models
         [Required]
         [Range(1, 53)]
         public int WeekNumber { get; set; }
+
+        [Required]
+        public string UserId { get; set; }
         [Required]
         public DateTime StartDate { get; set; } // ex: 02/03
         [Required]

@@ -16,6 +16,8 @@ namespace TrainingProgram.Api.Models
         [MaxLength(500)]
         public string? Notes { get; set; } //optional notes from the coach about the session goals or outcomes
 
+        [Required]
+        public string UserId { get; set; }
         // Foreign Key for the Microcycle
         public int MicrocycleId { get; set; }
         public Microcycle Microcycle { get; set; }

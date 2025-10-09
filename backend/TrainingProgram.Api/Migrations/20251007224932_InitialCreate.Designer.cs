@@ -12,7 +12,7 @@ using TrainingProgram.Api.Data;
 namespace TrainingProgram.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251007002209_InitialCreate")]
+    [Migration("20251007224932_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -50,6 +50,10 @@ namespace TrainingProgram.Api.Migrations
                     b.Property<int>("TrainingSessionId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TrainingSessionId");
@@ -75,6 +79,10 @@ namespace TrainingProgram.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("Year")
                         .HasColumnType("integer");
 
@@ -99,6 +107,10 @@ namespace TrainingProgram.Api.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("WeekNumber")
                         .HasColumnType("integer");
@@ -127,6 +139,10 @@ namespace TrainingProgram.Api.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

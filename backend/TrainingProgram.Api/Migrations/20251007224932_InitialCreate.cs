@@ -20,7 +20,8 @@ namespace TrainingProgram.Api.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Year = table.Column<int>(type: "integer", nullable: false),
                     TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    CoachName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
+                    CoachName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -34,6 +35,7 @@ namespace TrainingProgram.Api.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     WeekNumber = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
                     StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     MacrocycleId = table.Column<int>(type: "integer", nullable: false)
@@ -57,6 +59,7 @@ namespace TrainingProgram.Api.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    UserId = table.Column<string>(type: "text", nullable: false),
                     MicrocycleId = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
@@ -80,6 +83,7 @@ namespace TrainingProgram.Api.Migrations
                     DurationMinutes = table.Column<int>(type: "integer", nullable: false),
                     Category = table.Column<int>(type: "integer", nullable: false),
                     Format = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
                     TrainingSessionId = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>

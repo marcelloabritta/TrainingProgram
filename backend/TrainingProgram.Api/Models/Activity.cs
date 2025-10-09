@@ -21,6 +21,9 @@ namespace TrainingProgram.Api.Models
         public ActivityCategory Category { get; set; }
         [Required]
         public ActivityFormat Format { get; set; }
+            
+        [Required]    
+        public string UserId { get; set; }
 
         //Foreing Key for TrainingSession
         public int TrainingSessionId { get; set; }
