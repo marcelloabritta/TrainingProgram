@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { supabase } from './config/supabaseClient';
-import Login from './pages/Auth/Login';
+import Login from './pages/auth/Login';
 import DashBoard from './pages/DashBoard';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import UpdatePassword from './pages/auth/UpdatePassword';
 import Register from './pages/auth/Register';
+import CreatePlan from './pages/CreatePlan';
 
 function App() {
   const [session, setSession] = useState(null); 
@@ -35,7 +36,8 @@ function App() {
       <Route path = "/forgot-password" element = {<ForgotPassword/>} />
       <Route path="/sign-up" element={<Register />} />
       <Route path = "update-password" element = {isPasswordRecovery? <UpdatePassword setIsPasswordRecovery={setIsPasswordRecovery}/> : <Navigate to ="/"/>} />
-      <Route path='/dashboard' element={session? <DashBoard/> : <Navigate to ="/"/>} />
+      <Route path='/dashboard' element={session? <DashBoard session={session} /> : <Navigate to ="/"/>} />
+      <Route path='/create-plan' element={session? <CreatePlan session={session} /> : <Navigate to ="/"/>} />
     </Routes>
   )
 }

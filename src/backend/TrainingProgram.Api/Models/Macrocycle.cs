@@ -31,5 +31,7 @@ namespace TrainingProgram.Api.Models
         // Calculates the total training duration of the entire macrocycle by summing up all its microcycles
         [NotMapped]
         public int TotalMinutes => Microcycles.Sum(m => m.TotalMinutes);
+        [NotMapped]
+        public int WeekCount => Microcycles.Count();
     }
 }
