@@ -33,7 +33,7 @@ function ForgotPassword() {
             <span className="block font-bold">Password</span>
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            No worries, it happens. Enter your email below and we'll send you a
+            No worries, it happens. <br/> Enter your email below and we'll send you a
             recovery link.
           </p>
         </div>

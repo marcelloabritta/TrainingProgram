@@ -1,44 +1,51 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import SideBar from "../components/SideBar";
 import PlanCard from "../components/PlanCard";
-import { supabase } from "../config/supabaseClient";
 import EmptyState from "./../components/EmptyState";
 import CreatePlanButton from "../components/CreatePlanButton";
 import Header from "../components/Header";
 import MobileFooter from "../components/MobileFooter";
+import ConfirmationModel from "../components/ConfirmationModel";
+import EditPlanModel from "../components/EditPlanModel";
+import { usePlans } from "../hooks/usePlans";
 
 function DashBoard({ session }) {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { plans, loading, error, deletePlan, updatePlan } = usePlans(session);
 
-  useEffect(() => {
-    const user = session?.user;
-    const fetchPlans = async () => {
-      try {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [planToEdit, setPlanToEdit] = useState(null);
+  
+  const navigate = useNavigate();
 
-        const { data, error } = await supabase
-          .from("Macrocycles")
-          .select("*, Microcycles(*)")
-          .eq("UserId", user.id);
+  // 3. As funções de handle agora são simples "intermediários"
+  const handleDeleteClick = (plan) => {
+    setPlanToDelete(plan);
+    setIsDeleteModalOpen(true);
+  };
 
-        if (error) {
-          throw error;
-        }
-        setPlans(data);
-      } catch (err) {
-        setError("Could not fetch the plans. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlans();
-  }, []);
+  const handleConfirmDelete = async () => {
+    await deletePlan(planToDelete.Id); // Chama a função do hook
+    setIsDeleteModalOpen(false);
+    setPlanToDelete(null);
+  };
+
+  const handleEditClick = (plan) => {
+    setPlanToEdit(plan);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdatePlan = async (updatedData) => {
+    await updatePlan(planToEdit.Id, updatedData);
+    setIsEditModalOpen(false);
+    setPlanToEdit(null);
+  };
 
   if (loading) {
     return <p className="text-white text-center p-10">Loading your plans...</p>;
@@ -54,23 +61,25 @@ function DashBoard({ session }) {
       </div>
 
       <div className="flex flex-col flex-grow">
-        <Header title="My Plans"/>
+        <Header title="My Plans" />
 
-        <main className="flex-grow p-6">
+        <main className="flex-grow p-6 ">
           {plans.length === 0 ? (
             <EmptyState />
           ) : (
             <>
-              <div className="flex flex-col gap-6 ">
+              <div className="flex flex-col gap-6  ">
                 {plans.map((plan) => (
-                  <Link to={`/dashboard/${plan.Id}`} key={plan.Id}>
-                    <PlanCard
-                      year={plan.Year}
-                      teamName={plan.TeamName}
-                      coachName={plan.CoachName}
-                      weekCount={plan.Microcycles ? plan.Microcycles.length : 0}
-                    />
-                  </Link>
+                  <PlanCard
+                    key={plan.Id}
+                    year={plan.Year}
+                    teamName={plan.TeamName}
+                    coachName={plan.CoachName}
+                    weekCount={plan.Microcycles ? plan.Microcycles.length : 0}
+                    onDeleteClick={() => handleDeleteClick(plan)}
+                    onEditClick={() => handleEditClick(plan)}
+                    onCardClick={() => navigate(`/dashboard/${plan.Id}`)}
+                  />
                 ))}
               </div>
               <CreatePlanButton />
@@ -78,8 +87,21 @@ function DashBoard({ session }) {
           )}
         </main>
 
-        <MobileFooter currentPath={currentPath}/>
+        <MobileFooter currentPath={currentPath} />
       </div>
+      <ConfirmationModel
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Confirm Deletion"
+        message={`Are you sure you want to delete the plan for the ${planToDelete?.Year} season? This action cannot be undone.`}
+      />
+      <EditPlanModel 
+      isOpen={isEditModalOpen}
+      onClose={() => setIsEditModalOpen(false)}
+      planData={planToEdit}
+      onSave={handleUpdatePlan}
+      />
     </div>
   );
 }
