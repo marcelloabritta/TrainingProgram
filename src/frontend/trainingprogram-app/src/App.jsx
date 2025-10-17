@@ -8,6 +8,8 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import UpdatePassword from './pages/auth/UpdatePassword';
 import Register from './pages/auth/Register';
 import CreatePlan from './pages/CreatePlan';
+import PlanDetails from './pages/PlanDetails';
+import MainLayout from './components/MainLayout';
 
 function App() {
   const [session, setSession] = useState(null); 
@@ -36,8 +38,36 @@ function App() {
       <Route path = "/forgot-password" element = {<ForgotPassword/>} />
       <Route path="/sign-up" element={<Register />} />
       <Route path = "update-password" element = {isPasswordRecovery? <UpdatePassword setIsPasswordRecovery={setIsPasswordRecovery}/> : <Navigate to ="/"/>} />
-      <Route path='/dashboard' element={session? <DashBoard session={session} /> : <Navigate to ="/"/>} />
-      <Route path='/create-plan' element={session? <CreatePlan session={session} /> : <Navigate to ="/"/>} />
+      <Route 
+        path='/dashboard' 
+        element={session ? (
+            <MainLayout headerTitle="My Plans">
+                <DashBoard session={session} />
+            </MainLayout>
+        ) : (
+            <Navigate to ="/"/>
+        )} 
+    />
+    <Route 
+        path='/create-plan' 
+        element={session ? (
+            <MainLayout headerTitle="Create a Plan">
+                <CreatePlan session={session} />
+            </MainLayout>
+        ) : (
+            <Navigate to ="/"/>
+        )} 
+    />
+    <Route 
+        path='/dashboard/:planId' 
+        element={session ? (
+            <MainLayout headerTitle="Plan Details"> 
+                <PlanDetails session={session} />
+            </MainLayout>
+        ) : (
+            <Navigate to ="/"/>
+        )} 
+    />
     </Routes>
   )
 }

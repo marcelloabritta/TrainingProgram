@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "../config/supabaseClient";
+import { supabase } from "../../config/supabaseClient";
 import Logo from '../assets/logo.png';
 import { faArrowRightFromBracket, faChartSimple, faFolder } from "@fortawesome/free-solid-svg-icons";
 import NavButton from "./NavButton";

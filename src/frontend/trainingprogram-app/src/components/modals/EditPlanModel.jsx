@@ -1,26 +1,32 @@
 import React, { useEffect, useState } from 'react'
-import InputField from './InputField';
-import PrimaryButton from './PrimaryButton';
+import InputField from '../InputField';
+import PrimaryButton from '../ui/PrimaryButton';
+import { newDate } from '../../../node_modules/react-datepicker/src/date_utils';
+import DatePicker from 'react-datepicker';
 
 function EditPlanModel({isOpen, onClose, planData, onSave}) {
-  const [year, setYear] = useState('');
+  const [startDate, setStartDate] = useState(newDate());
+  const [duration, setDuration] = useState(52);
   const [teamName, setTeamName] = useState('');
   const [coachName, setCoachName] = useState('');
 
   useEffect(() => {
     if (planData) {
-      setYear(planData.Year);
       setTeamName(planData.TeamName);
       setCoachName(planData.CoachName);
+      setStartDate(newDate(planData.StartDate));
+      setDuration(planData.Duration);
     }
   }, [planData]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const updatedData = {
-      Year: year,
+      Year: startDate.getFullYear,
       TeamName: teamName,
       CoachName: coachName,
+      StartDate: startDate,
+      Duration: duration,
     };
     onSave(updatedData); 
   };
@@ -37,13 +43,6 @@ function EditPlanModel({isOpen, onClose, planData, onSave}) {
             <form onSubmit={handleSubmit}>
               <div className="flex flex-col gap-4">
                 <InputField
-                  label="Season Year"
-                  type="number"
-                  value={year}
-                  className="p-3 bg-[#303E52] mb-5"
-                  onChange={(e) => setYear(e.target.value)}
-                />
-                <InputField
                   label="Team Name"
                   type="text"
                   value={teamName}
@@ -57,6 +56,22 @@ function EditPlanModel({isOpen, onClose, planData, onSave}) {
                   className="p-3 bg-[#303E52] mb-5"
                   onChange={(e) => setCoachName(e.target.value)}
                 />
+                <InputField
+                label="Duration Weeks"
+                type= "number"
+                value={duration}
+                className="p-3 bg-[#303E52] mb-5"
+                onChange={(e) => setDuration(e.target.value)}
+                />
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-medium text-white">Start Date</label>
+                  <DatePicker
+                  selected={startDate}
+                  onChange={(date) => setStartDate(date)}
+                  className="w-full p-3 bg-gray-700 text-white rounded-md border border-gray-600 focus:ring-2 focus:ring-[#B2E642] focus:outline-none"
+                  dateFormat="dd/MM/yyyy"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-4 mt-8">
                 <button

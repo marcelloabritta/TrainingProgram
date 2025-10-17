@@ -9,9 +9,13 @@ export function usePlans(session) {
   const [error, setError] = useState(null);
 
 
-  const fetchPlans = useCallback(async () => {
+ const fetchPlans = useCallback(async () => {
     const user = session?.user;
-    if (!user) return;
+    if (!user) {
+      setPlans([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -23,7 +27,7 @@ export function usePlans(session) {
       if (error) throw error;
       setPlans(data);
     } catch (err) {
-      setError("Could not fetch the plans.");
+      setError(err|| "Could not fetch the plans.");
     } finally {
       setLoading(false);
     }
@@ -47,16 +51,16 @@ export function usePlans(session) {
   };
 
   const updatePlan = async (planId, updatedData) => {
-    const { data, error } = await supabase
-      .from("Macrocycles")
-      .update(updatedData)
-      .eq("Id", planId)
-      .select();
+    const { error } = await supabase
+    .rpc('update_plan_and_weeks', {
+      plan_id: planId,
+      plan_data: updatedData
+    });
 
     if (error) {
       console.error("Error updating plan:", error);
     } else {
-      setPlans(currentPlans => currentPlans.map(plan => (plan.Id === planId ? data[0] : plan)));
+      fetchPlans();
     }
   };
 
