@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import InputField from '../InputField';
+import InputField from '../ui/InputField';
 import PrimaryButton from '../ui/PrimaryButton';
 import { newDate } from '../../../node_modules/react-datepicker/src/date_utils';
 import DatePicker from 'react-datepicker';

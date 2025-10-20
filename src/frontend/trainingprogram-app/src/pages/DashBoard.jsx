@@ -1,16 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Link, useNavigate } from "react-router-dom";
-import PlanCard from "../components/PlanCard";
-import EmptyState from "./../components/EmptyState";
-import CreatePlanButton from "../components/CreatePlanButton";
-import ConfirmationModel from "../components/ConfirmationModel";
-import EditPlanModel from "../components/EditPlanModel";
+import PlanCard from "../components/plan/PlanCard";
+import EmptyState from "./../components/ui/EmptyState";
+import CreatePlanButton from "../components/ui/CreatePlanButton";
+import ConfirmationModel from "../components/modals/ConfirmationModel";
+import EditPlanModel from "../components/modals/EditPlanModel";
 import { usePlans } from "../hooks/usePlans";
 import { format } from "date-fns";
+import { useHeader } from "../context/HeaderContext";
+
 
 function DashBoard({ session }) {
   const { plans, loading, error, deletePlan, updatePlan } = usePlans(session);
+  const { setTitle } = useHeader();
+
+  useEffect(() => {
+    setTitle("My Plans");
+  }, [setTitle]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);

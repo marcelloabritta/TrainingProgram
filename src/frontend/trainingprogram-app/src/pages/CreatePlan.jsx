@@ -1,15 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {  useNavigate } from "react-router-dom";
-import InputField from "../components/InputField";
-import PrimaryButton from "../components/PrimaryButton";
+import InputField from "../components/ui/InputField";
+import PrimaryButton from "../components/ui/PrimaryButton";
 import { supabase } from "../config/supabaseClient";
-import FeedbackMessage from "../components/FeedbackMessage";
+import FeedbackMessage from "../components/ui/FeedbackMessage";
 import {DatePicker} from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { add, endOfWeek, format, startOfWeek } from "date-fns";
+import Header from "../components/layout/Header";
+import { useHeader } from "../context/HeaderContext";
 
 
 function CreatePlan({ session }) {
+    const { setTitle } = useHeader();
+  
+    useEffect(() => {
+      setTitle("Create a Plan");
+    }, [setTitle]);
 
   const [startDate, setStartDate] = useState(new Date());
   const [duration, setDuration] = useState(52);
@@ -74,6 +81,8 @@ function CreatePlan({ session }) {
   };
 
   return (
+    <div className="flex flex-col h-full w-full">
+      <Header title= "Create a Plan" />
     <form onSubmit={handleCreatePlan}>
     <InputField
       label="Team Name"
@@ -121,6 +130,7 @@ function CreatePlan({ session }) {
       Create Plan
     </PrimaryButton>
   </form>
+  </div>
   );
 }
 

@@ -3,14 +3,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { useState } from "react";
 import WeekCard from "./WeekCard";
 
-function MonthCard({ monthName, weeks }) {
+function MonthCard({ monthName, weeks, planId}) {
   const [expanded, setExpanded] = useState(false);
 
-  const totalMinutesInMonth = weeks.reduce((monthSum, week) => {
-    const weekTotal = week.TrainingSessions.reduce(
-      (weekSum, session) => weekSum + session.TotalMinutes,
-      0
-    );
+const totalMinutesInMonth = weeks.reduce((monthSum, week) => {
+    const weekTotal = week.TrainingSessions.reduce((weekSum, session) => {
+      const sessionTotal = session.Activities?.reduce((activitySum, activity) =>
+        activitySum + activity.DurationMinutes, 0) || 0;
+      
+      return weekSum + sessionTotal;
+    }, 0);
+
     return monthSum + weekTotal;
   }, 0);
 
@@ -38,7 +41,7 @@ function MonthCard({ monthName, weeks }) {
           {weeks
             .sort((a, b) => a.WeekNumber - b.WeekNumber)
             .map((week) => (
-              <WeekCard key={week.Id} week={week} />
+              <WeekCard key={week.Id} week={week} planId={planId}/>
             ))}
         </div>
       )}

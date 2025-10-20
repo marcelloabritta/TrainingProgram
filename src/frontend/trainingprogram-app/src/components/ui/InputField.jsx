@@ -1,5 +1,5 @@
 import React from 'react'
-import { twMerge } from './../../node_modules/tailwind-merge/src/lib/tw-merge';
+import { twMerge } from 'tailwind-merge';
 
 function InputField({ label, type, placeholder, value, onChange, className= "", labelClassName=""}) {
   const defaultInputClasses = "rounded-md  bg-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#B2E642] pl-2 text-white p-1";

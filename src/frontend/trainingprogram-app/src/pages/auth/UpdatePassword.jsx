@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../config/supabaseClient";
-import InputField from "../../components/InputField";
+import InputField from "../../components/ui/InputField";
 import Logo from "../../assets/logo.png";
-import SecondaryLink from "../../components/SecondaryLink";
-import FeedbackMessage from "../../components/FeedbackMessage";
-import PrimaryButton from "../../components/PrimaryButton";
-import AuthForm from "../../components/AuthForm";
+import SecondaryLink from "../../components/ui/SecondaryLink";
+import FeedbackMessage from "../../components/ui/FeedbackMessage";
+import PrimaryButton from "../../components/ui/PrimaryButton";
+import AuthForm from "../../components/auth/AuthForm";
 
 function UpdatePassword({ setIsPasswordRecovery }) {
   const [newPassword, setNewPassword] = useState("");

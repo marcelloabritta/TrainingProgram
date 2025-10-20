@@ -1,11 +1,11 @@
-import AuthForm from "../../components/AuthForm";
-import InputField from "../../components/InputField";
+import AuthForm from "../../components/auth/AuthForm";
+import InputField from "../../components/ui/InputField";
 import Logo from "../../assets/logo.png";
 import { useState } from "react";
-import PrimaryButton from "../../components/PrimaryButton";
-import SecondaryLink from "../../components/SecondaryLink";
+import PrimaryButton from "../../components/ui/PrimaryButton";
+import SecondaryLink from "../../components/ui/SecondaryLink";
 import { supabase } from "../../config/supabaseClient";
-import FeedbackMessage from "../../components/FeedbackMessage";
+import FeedbackMessage from "../../components/ui/FeedbackMessage";
 
 function Register() {
   const [email, setEmail] = useState("");

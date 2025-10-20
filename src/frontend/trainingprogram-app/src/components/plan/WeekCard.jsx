@@ -4,16 +4,19 @@ import React from 'react'
 import { Link } from 'react-router-dom';
 
 function WeekCard({ week, planId}) {
-    const totalMinutes = week.TrainingSessions
-    ? week.TrainingSessions.reduce((sum, session) => sum + session.TotalMinutes, 0)
-    : 0;
+const totalMinutes = week.TrainingSessions.reduce((weekSum, session) => {
+        const sessionMinutes = session.Activities?.reduce((sessionSum, activity) => 
+            sessionSum + activity.DurationMinutes, 0) || 0;
+        
+        return weekSum + sessionMinutes;
+    }, 0);
 
     const startDateFormatted = format(new Date(week.StartDate), 'MMM d', { locale: enUS });
     const endDateFormatted = format(new Date(week.EndDate), 'MMM d', { locale: enUS });
     
   return (
 <Link 
-      to={`/plan/${planId}/week/${week.WeekNumber}`} // <-- A NOVA URL
+      to={`/plan/${planId}/week/${week.WeekNumber}`} 
       className="bg-gray-800 rounded-lg p-3 shadow-inner flex justify-between items-center hover:bg-gray-700 transition-colors duration-200"
     >
       <div className="flex flex-col">

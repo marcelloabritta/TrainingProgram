@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import Logo from "../../assets/logo.png";
 import { supabase } from "../../config/supabaseClient";
-import InputField from "../../components/InputField";
-import PrimaryButton from "../../components/PrimaryButton";
-import SecondaryLink from "../../components/SecondaryLink";
-import FeedbackMessage from "../../components/FeedbackMessage";
-import AuthForm from "../../components/AuthForm";
+import InputField from "../../components/ui/InputField";
+import PrimaryButton from "../../components/ui/PrimaryButton";
+import SecondaryLink from "../../components/ui/SecondaryLink";
+import FeedbackMessage from "../../components/ui/FeedbackMessage";
+import AuthForm from "../../components/auth/AuthForm";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
