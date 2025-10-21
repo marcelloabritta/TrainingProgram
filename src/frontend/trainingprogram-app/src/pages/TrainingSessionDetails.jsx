@@ -19,9 +19,9 @@ function TrainingSessionDetails() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState(null);
+  const [activityToEdit, setActivityToEdit] = useState(null);
 
   const openCreateModal = () => setIsCreateModalOpen(true);
-  const closeCreateModal = () => setIsCreateModalOpen(false);
 
   const openDeleteModal = (activity) => {
     setActivityToDelete(activity); // Guarda a atividade que foi clicada
@@ -32,6 +32,17 @@ function TrainingSessionDetails() {
     setIsDeleteModalOpen(false); // Fecha o modal
     setActivityToDelete(null); // Limpa a memória
   };
+
+  const openEditModal = (activity) => {
+        setActivityToEdit(activity); 
+        openCreateModal();          
+    };
+
+
+    const closeCreateModal = () => {
+        setIsCreateModalOpen(false);
+        setActivityToEdit(null); 
+    };
 
   useEffect(() => {
     const fetchSessionDetails = async () => {
@@ -120,6 +131,34 @@ function TrainingSessionDetails() {
     }
   };
 
+  const handleUpdateActivity = async (activityId, updatedData) => {
+        try {
+            // 1. Fale com o Supabase para ATUALIZAR
+            const { data, error } = await supabase
+                .from('Activities')
+                .update(updatedData)
+                .eq('Id', activityId) // Onde o ID bate
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                // 2. ATUALIZE A TELA (lógica de "substituição")
+                setTrainingSession(currentSession => ({
+                    ...currentSession,
+                    // Crie um novo array: se o ID bater, use o 'data' novo, senão, mantenha o antigo
+                    Activities: currentSession.Activities.map(
+                        act => act.Id === activityId ? data : act
+                    )
+                }));
+                closeCreateModal(); // Fecha o modal após o sucesso
+            }
+        } catch (err) {
+            setError(`Error updating activity: ${err.message}`);
+        }
+    };
+
   return (
     <div className="flex flex-col gap-6 p-4">
       <h1 className="font-medium text-gray-400 text-xl text-center mt-[-20px]">
@@ -141,7 +180,7 @@ function TrainingSessionDetails() {
         {trainingSession && trainingSession.Activities.length > 0 ? (
           <div className="flex flex-col gap-3">
             {trainingSession.Activities.map((activity) => (
-              <ActivityList key={activity.Id} activity={activity} onDelete={() => openDeleteModal(activity)} />
+              <ActivityList key={activity.Id} activity={activity} onDelete={() => openDeleteModal(activity)} onEdit={() => openEditModal(activity)} />
             ))}
           </div>
         ) : (
@@ -158,6 +197,8 @@ function TrainingSessionDetails() {
         isOpen={isCreateModalOpen}
         onClose={closeCreateModal}
         onActivityCreate={handleCreateActivity}
+        onActivityUpdate={handleUpdateActivity}
+        activityToEdit={activityToEdit}
         sessionId={sessionId}
       />
       <ConfirmationModel

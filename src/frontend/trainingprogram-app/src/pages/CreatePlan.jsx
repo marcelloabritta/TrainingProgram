@@ -81,8 +81,6 @@ function CreatePlan({ session }) {
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <Header title= "Create a Plan" />
     <form onSubmit={handleCreatePlan}>
     <InputField
       label="Team Name"
@@ -130,7 +128,6 @@ function CreatePlan({ session }) {
       Create Plan
     </PrimaryButton>
   </form>
-  </div>
   );
 }
 

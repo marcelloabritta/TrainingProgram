@@ -1,29 +1,63 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import InputField from "../ui/InputField";
 import PrimaryButton from "../ui/PrimaryButton";
+import FeedbackMessage from './../ui/FeedbackMessage';
 
-function CreateActivityModal({ isOpen, onClose, onActivityCreate, sessionId }) {
+function CreateActivityModal({ isOpen, onClose, onActivityCreate, sessionId, activityToEdit, onActivityUpdate}) {
+
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Technical");
   const [format, setFormat] = useState("Drill");
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration] = useState(15);
+  const [error, setError] = useState(null);
 
-  if (!isOpen) {
-    return null;
-  }
+  const isEditMode = activityToEdit !== null;
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isEditMode) {
+        setName(activityToEdit.Name);
+        setCategory(activityToEdit.Category);
+        setFormat(activityToEdit.Format);
+        setDuration(activityToEdit.DurationMinutes);
+      } else {
+        setName("");
+        setCategory("Technical");
+        setFormat("Drill");
+        setDuration(15);
+      }
+      setError(null);
+    }
+  }, [isOpen, activityToEdit, isEditMode]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError(null);
 
-    const newActivityData = {
+    if (!name.trim()) {
+      setError("O nome da atividade não pode estar vazio.");
+      return;
+    }
+    if (!duration || parseInt(duration) <= 0) {
+      setError("A duração deve ser um número positivo.");
+      return;
+    }
+
+    const activityData = {
       Name: name,
       Category: category,
       Format: format,
       DurationMinutes: parseInt(duration),
-      TrainingSessionId: sessionId,
     };
-    onActivityCreate(newActivityData);
-    onClose();
+
+    if (isEditMode) {
+      onActivityUpdate(activityToEdit.Id, activityData);
+    } else {
+      activityData.TrainingSessionId = sessionId;
+      onActivityCreate(activityData);
+    }
   };
   return (
     <div
@@ -34,9 +68,8 @@ function CreateActivityModal({ isOpen, onClose, onActivityCreate, sessionId }) {
         onClick={(e) => e.stopPropagation()}
         className="bg-[#1f2937] text-white rounded-lg shadow-xl p-6 w-full max-w-md"
       >
-        {/* Cabeçalho */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Create New Activity</h2>
+          <h2 className="text-xl font-bold">{isEditMode ? "Edit Activity" : "Create New Activity"}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 text-2xl hover:text-white cursor-pointer"
@@ -111,8 +144,9 @@ function CreateActivityModal({ isOpen, onClose, onActivityCreate, sessionId }) {
             />
           </div>
 
+          <FeedbackMessage message={error} />
           <PrimaryButton className="font-bold py-2" type="submit">
-            Create Activity
+            {isEditMode ? "Save Changes" : "Create Activity"}
           </PrimaryButton>
         </form>
       </div>

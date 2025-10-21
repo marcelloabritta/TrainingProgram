@@ -1,4 +1,4 @@
-import { faBullseye,  faClipboardList, faDumbbell, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faBullseye,  faClipboardList, faDumbbell, faPencilAlt, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React from 'react'
 
@@ -15,7 +15,7 @@ const getIconForActivityCategory = (category) => {
   }
 };
 
-function ActivityList({activity, onDelete}) {
+function ActivityList({activity, onDelete, onEdit}) {
     if(!activity) return null
   return (
     <div className="flex items-center justify-between shadow-lg rounded-2xl p-6 w-full transition-all duration-300 bg-[#1f2937] text-white ">
@@ -28,6 +28,12 @@ function ActivityList({activity, onDelete}) {
             </div>
         </div>
         <div className="flex items-center gap-4 text-gray-400">
+          <button 
+          onClick={onEdit} 
+          className="text-gray-400 hover:text-white"
+        >
+          <FontAwesomeIcon icon={faPencilAlt} />
+        </button>
             <button 
           onClick={onDelete} 
           className="text-red-500 hover:text-red-400"
