@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import PlanCard from "../components/plan/PlanCard";
 import EmptyState from "./../components/ui/EmptyState";
 import CreatePlanButton from "../components/ui/CreatePlanButton";
-import ConfirmationModel from "../components/modals/ConfirmationModel";
-import EditPlanModel from "../components/modals/EditPlanModel";
+import ConfirmationModal from "../components/modals/ConfirmationModal";
+import EditPlanModal from "../components/modals/EditPlanModal";
 import { usePlans } from "../hooks/usePlans";
 import { format } from "date-fns";
 import { useHeader } from "../context/HeaderContext";
@@ -93,14 +93,14 @@ function DashBoard({ session }) {
       </>
     )}
 
-    <ConfirmationModel
+    <ConfirmationModal
       isOpen={isDeleteModalOpen}
       onClose={() => setIsDeleteModalOpen(false)}
       onConfirm={handleConfirmDelete}
       title="Confirm Deletion"
       message={`Are you sure you want to delete the plan for the ${planToDelete?.Year} season? This action cannot be undone.`}
     />
-    <EditPlanModel 
+    <EditPlanModal 
       isOpen={isEditModalOpen}
       onClose={() => setIsEditModalOpen(false)}
       planData={planToEdit}

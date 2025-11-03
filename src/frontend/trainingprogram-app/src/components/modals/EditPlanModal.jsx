@@ -4,7 +4,7 @@ import PrimaryButton from '../ui/PrimaryButton';
 import { newDate } from '../../../node_modules/react-datepicker/src/date_utils';
 import DatePicker from 'react-datepicker';
 
-function EditPlanModel({isOpen, onClose, planData, onSave}) {
+function EditPlanModal({isOpen, onClose, planData, onSave}) {
   const [startDate, setStartDate] = useState(newDate());
   const [duration, setDuration] = useState(52);
   const [teamName, setTeamName] = useState('');
@@ -89,4 +89,4 @@ function EditPlanModel({isOpen, onClose, planData, onSave}) {
   )
 }
 
-export default EditPlanModel
+export default EditPlanModal

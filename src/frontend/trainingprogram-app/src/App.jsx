@@ -13,6 +13,8 @@ import WeekDetails from "./pages/WeekDetails";
 import { HeaderProvider } from "./context/HeaderContext";
 import AuthListener from "./components/auth/AuthListener";
 import TrainingSessionDetails from "./pages/TrainingSessionDetails";
+import Settings from "./pages/Settings";
+import ExerciseLibrary from "./pages/ExerciseLibrary";
 
 function App() {
   const [session, setSession] = useState(null);
@@ -96,7 +98,31 @@ function App() {
             ) : (
               <Navigate to="/" />
             )
-          }
+          } 
+        />
+                <Route
+          path="/settings"
+          element={
+            session ? (
+              <MainLayout>
+                <Settings session={session} />
+              </MainLayout>
+            ) : (
+              <Navigate to="/" />
+            )
+          }  
+        />
+                <Route
+          path="/library"
+          element={
+            session ? (
+              <MainLayout>
+                <ExerciseLibrary session={session} />
+              </MainLayout>
+            ) : (
+              <Navigate to="/" />
+            )
+          }  
         />
       </Routes>
     </HeaderProvider>

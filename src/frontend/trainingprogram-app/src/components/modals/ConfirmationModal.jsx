@@ -1,6 +1,6 @@
 import React from 'react'
 
-function ConfirmationModel({isOpen, onClose, onConfirm, title, message}) {
+function ConfirmationModal({isOpen, onClose, onConfirm, title, message}) {
     if (!isOpen) {
     return null;
   }
@@ -18,4 +18,4 @@ function ConfirmationModel({isOpen, onClose, onConfirm, title, message}) {
   )
 }
 
-export default ConfirmationModel
+export default ConfirmationModal

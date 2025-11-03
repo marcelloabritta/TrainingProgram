@@ -2,7 +2,7 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../config/supabaseClient";
 import Logo from '../../assets/logo.png';
-import { faArrowRightFromBracket, faChartSimple, faFolder } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightFromBracket, faBook, faChartSimple, faFolder } from "@fortawesome/free-solid-svg-icons";
 import NavButton from "./NavButton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -24,6 +24,7 @@ function SideBar() {
       <nav className="flex flex-col gap-4 flex-grow">
         <NavButton to="/dashboard" icon={faFolder} label="Plans" isActive={currentPath === '/dashboard'} />
         <NavButton to="/analytics" icon={faChartSimple} label="Analytics" isActive={currentPath === '/analytics'} />
+        <NavButton to="/library" icon={faBook} label="Exercise Library" isActive={currentPath === '/library'} />
       </nav>
 
        <button onClick={handleLogout} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-700 cursor-pointer">

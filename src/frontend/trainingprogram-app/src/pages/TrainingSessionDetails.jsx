@@ -7,7 +7,7 @@ import ActivityList from "../components/plan/ActivityList";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import CreateActivityModal from "../components/modals/CreateActivityModal";
-import ConfirmationModel from "../components/modals/ConfirmationModel";
+import ConfirmationModal from "../components/modals/ConfirmationModal";
 
 function TrainingSessionDetails() {
   const { setTitle, setShowBackButton } = useHeader();
@@ -201,7 +201,7 @@ function TrainingSessionDetails() {
         activityToEdit={activityToEdit}
         sessionId={sessionId}
       />
-      <ConfirmationModel
+      <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}
         onConfirm={handleDeleteActivity}
