@@ -19,22 +19,12 @@ import ExerciseLibrary from "./pages/ExerciseLibrary";
 function App() {
   const [session, setSession] = useState(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  if(loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#111827] text-white">
-        Loading...
-      </div>
-      );
-  }
 
   return (
     <HeaderProvider>
       <AuthListener
         setSession={setSession}
         setIsPasswordRecovery={setIsPasswordRecovery}
-        setLoading={setLoading}
       />
       <Routes>
         <Route path="/" element={<Login />} />

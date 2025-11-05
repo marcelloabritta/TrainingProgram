@@ -2,13 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
 
-function AuthListener({ setSession, setIsPasswordRecovery, setLoading }) {
+function AuthListener({ setSession, setIsPasswordRecovery }) {
   const navigate = useNavigate();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false)
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -17,11 +16,10 @@ function AuthListener({ setSession, setIsPasswordRecovery, setLoading }) {
         navigate('/update-password');
       }
       setSession(session);
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, setSession, setIsPasswordRecovery, setLoading]);
+  }, [navigate, setSession, setIsPasswordRecovery]);
 
   return null; 
 }
