@@ -52,9 +52,10 @@ function TrainingSessionDetails() {
 
         const { data, error } = await supabase
           .from("TrainingSessions")
-          .select("*, Activities(*)")
+          .select("*, Activities(*, Category:Categories (Name), Exercise:Exercises (Name))")
           .eq("Id", sessionId)
           .single();
+
         if (error) throw error;
         setTrainingSession(data);
       } catch (err) {
@@ -92,7 +93,7 @@ function TrainingSessionDetails() {
       const { data, error: insertError } = await supabase
         .from("Activities")
         .insert(newActivityData)
-        .select()
+        .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
         .single();
       if (insertError) throw insertError;
       if (data) {
@@ -138,7 +139,7 @@ function TrainingSessionDetails() {
                 .from('Activities')
                 .update(updatedData)
                 .eq('Id', activityId) // Onde o ID bate
-                .select()
+                .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
                 .single();
 
             if (error) throw error;

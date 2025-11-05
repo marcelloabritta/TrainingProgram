@@ -85,7 +85,7 @@ function ExerciseLibrary() {
   };
 
   useEffect(() => {
-    setTitle("Exercises Library");
+    setTitle("Library");
     setShowBackButton(true);
 
     async function fetchData() {
@@ -321,7 +321,7 @@ function ExerciseLibrary() {
           onClose={closeDeleteExerciseModal}
           onConfirm={confirmDeleteExercise}
           title="Delete Exercise"
-          message={`Are you sure you want to delete the exercise "${exerciseToDelete?.Name}"?`}
+          message={`Are you sure you want to delete the exercise "${exerciseToDelete?.Name}"? This will also remove it from all training plans where it is used. This action cannot be undone`}
         />
       )}
 
@@ -349,7 +349,7 @@ function ExerciseLibrary() {
           onClose={closeDeleteCategoryModal}
           onConfirm={confirmDeleteCategory}
           title="Delete Category"
-          message={`Are you sure you want to delete the category "${categoryToDelete?.Name}"? All exercises within it will also be deleted.`}
+          message={`Are you sure you want to delete the category "${categoryToDelete?.Name}"? All exercises inside it, and all related activities in your training plans, will be permanently deleted. This action cannot be undone.`}
         />
       )}
     </div>

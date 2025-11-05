@@ -24,7 +24,7 @@ function SideBar() {
       <nav className="flex flex-col gap-4 flex-grow">
         <NavButton to="/dashboard" icon={faFolder} label="Plans" isActive={currentPath === '/dashboard'} />
         <NavButton to="/analytics" icon={faChartSimple} label="Analytics" isActive={currentPath === '/analytics'} />
-        <NavButton to="/library" icon={faBook} label="Exercise Library" isActive={currentPath === '/library'} />
+        <NavButton to="/library" icon={faBook} label="Library" isActive={currentPath === '/library'} />
       </nav>
 
        <button onClick={handleLogout} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-700 cursor-pointer">

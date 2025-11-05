@@ -25,7 +25,7 @@ function MobileFooter({ currentPath }) {
       <NavButton
         to="/library"
         icon={faBook}
-        label="Exercises"
+        label="Library"
         isActive={currentPath === "/library"}
       />
     </footer>

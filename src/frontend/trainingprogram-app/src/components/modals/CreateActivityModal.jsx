@@ -135,7 +135,7 @@ function CreateActivityModal({
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">
-            {isEditMode ? "Edit Activity" : "Create New Activity"}
+            {isEditMode ? "Edit Activity" : "Add New Activity"}
           </h2>
           <button
             onClick={onClose}
@@ -167,7 +167,7 @@ function CreateActivityModal({
 
           <div>
             <label htmlFor="exercise" className="block text-sm font-medium text-gray-400 mb-1">
-              Exercise
+              Activity
             </label>
             <select
               id="exercise"
@@ -200,7 +200,7 @@ function CreateActivityModal({
 
           <FeedbackMessage message={error} />
           <PrimaryButton className="font-bold py-2" type="submit">
-            {isEditMode ? "Save Changes" : "Create Activity"}
+            {isEditMode ? "Save Changes" : "Save Activity"}
           </PrimaryButton>
         </form>
       </div>
