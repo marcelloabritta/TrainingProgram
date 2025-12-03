@@ -160,7 +160,7 @@ function Analytics({ session }) {
                 <select
                     value={selectedPlanId || ''}
                     onChange={handlePlanChange}
-                    className="flex-1 sm:flex-initial sm:min-w-[300px] bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#B2E642] focus:border-transparent outline-none"
+                    className="w-full sm:flex-1 sm:min-w-[300px] bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#B2E642] focus:border-transparent outline-none"
                 >
                     {plans.map(plan => (
                         <option key={plan.Id} value={plan.Id}>
