@@ -15,6 +15,7 @@ import AuthListener from "./components/auth/AuthListener";
 import TrainingSessionDetails from "./pages/TrainingSessionDetails";
 import Settings from "./pages/Settings";
 import ExerciseLibrary from "./pages/ExerciseLibrary";
+import Analytics from "./pages/Analytics";
 
 function App() {
   const [session, setSession] = useState(null);
@@ -98,9 +99,9 @@ function App() {
             ) : (
               <Navigate to="/" />
             )
-          } 
+          }
         />
-                <Route
+        <Route
           path="/settings"
           element={
             session ? (
@@ -110,9 +111,9 @@ function App() {
             ) : (
               <Navigate to="/" />
             )
-          }  
+          }
         />
-                <Route
+        <Route
           path="/library"
           element={
             session ? (
@@ -122,7 +123,19 @@ function App() {
             ) : (
               <Navigate to="/" />
             )
-          }  
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            session ? (
+              <MainLayout>
+                <Analytics session={session} />
+              </MainLayout>
+            ) : (
+              <Navigate to="/" />
+            )
+          }
         />
       </Routes>
     </HeaderProvider>
