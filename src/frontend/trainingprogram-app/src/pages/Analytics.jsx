@@ -207,6 +207,7 @@ function Analytics({ session }) {
                                                 dataKey="value"
                                                 label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                                                 labelLine={false}
+                                                style={{ fontSize: '14px', fontWeight: 'bold', fill: '#fff' }}
                                             >
                                                 {categoryData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
