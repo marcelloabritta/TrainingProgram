@@ -36,7 +36,7 @@ function ActivityView({ session, onBack }) {
                 setLoading(true);
                 const { data, error } = await supabase
                     .from("Activities")
-                    .select("*, Category:Categories (Name), Exercise:Exercises (Name)")
+                    .select("*, Category:Categories (Name), Exercise:Exercises (Name, Combinations)")
                     .eq("TrainingSessionId", session.Id);
 
                 if (error) throw error;
@@ -131,9 +131,14 @@ function ActivityView({ session, onBack }) {
                                         <FontAwesomeIcon icon={getIconForActivityCategory(categoryName)} />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-semibold text-white">
+                                        <h3 className="text-lg font-semibold text-white line-clamp-1">
                                             {exerciseName}
                                         </h3>
+                                        {activity.Exercise?.Combinations && (
+                                            <p className="text-xs text-gray-500 italic mb-1">
+                                                {activity.Exercise.Combinations}
+                                            </p>
+                                        )}
                                         <p className="text-gray-400 text-sm">
                                             {categoryName} • <span className="text-[#B2E642]">{activity.DurationMinutes} min</span>
                                         </p>

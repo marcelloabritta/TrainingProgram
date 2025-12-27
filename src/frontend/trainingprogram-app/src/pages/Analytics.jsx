@@ -23,6 +23,7 @@ function Analytics({ session }) {
     const [selectedPlanId, setSelectedPlanId] = useState(null);
     const [sessions, setSessions] = useState([]);
     const [planActivities, setPlanActivities] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -89,7 +90,7 @@ function Analytics({ session }) {
                     const sessionIds = data.map(s => s.Id);
                     const { data: activitiesData, error: activitiesError } = await supabase
                         .from("Activities")
-                        .select("*, Category:Categories(Name)")
+                        .select("*, Category:Categories(Name), Exercise:Exercises(Name, Combinations)")
                         .in("TrainingSessionId", sessionIds);
 
                     if (activitiesError) throw activitiesError;
@@ -132,21 +133,55 @@ function Analytics({ session }) {
         setViewMode(VIEW_MODES.MONTHS);
         setSelectedMonthDate(null);
         setSelectedMonthSessions([]);
+        setSelectedCategory(null);
+    };
+
+    const handleCategoryClick = (data) => {
+        if (!selectedCategory) {
+            setSelectedCategory(data.name);
+        }
+    };
+
+    const handleBackToCategories = () => {
+        setSelectedCategory(null);
     };
 
     // Prepare data for overview PieChart
-    const categoryData = planActivities.reduce((acc, activity) => {
-        const categoryName = activity.Category ? activity.Category.Name : "Unknown";
-        const existing = acc.find(item => item.name === categoryName);
+    const filteredActivities = selectedCategory
+        ? planActivities.filter(a => a.Category?.Name === selectedCategory)
+        : planActivities;
+
+    const chartData = filteredActivities.reduce((acc, activity) => {
+        let name = selectedCategory
+            ? (activity.Exercise?.Name || "Unknown")
+            : (activity.Category?.Name || "Unknown");
+
+        // If it's a combined/game system item, include its specific combination in the name for uniqueness in the chart
+        if (selectedCategory && activity.Exercise?.Combinations) {
+            name = `${name} (${activity.Exercise.Combinations})`;
+        }
+
+        const existing = acc.find(item => item.name === name);
         if (existing) {
             existing.value += activity.DurationMinutes;
         } else {
-            acc.push({ name: categoryName, value: activity.DurationMinutes });
+            acc.push({ name: name, value: activity.DurationMinutes });
         }
         return acc;
     }, []);
 
-    const totalDuration = planActivities.reduce((sum, activity) => sum + (activity.DurationMinutes || 0), 0);
+    const totalSessions = selectedCategory
+        ? new Set(filteredActivities.map(a => a.TrainingSessionId)).size
+        : sessions.length;
+
+    const totalDuration = filteredActivities.reduce((sum, activity) => sum + (activity.DurationMinutes || 0), 0);
+
+    const uniqueDaysCount = selectedCategory
+        ? new Set(filteredActivities.map(a => {
+            const session = sessions.find(s => s.Id === a.TrainingSessionId);
+            return session ? session.Date.split('T')[0] : null;
+        }).filter(Boolean)).size
+        : new Set(sessions.map(s => s.Date.split('T')[0])).size;
 
     if (loading && viewMode === VIEW_MODES.MONTHS && !selectedPlanId && plans.length === 0) {
         if (plans.length === 0 && !loading) return <div className="text-center text-white p-10">No plans found. Create a plan first.</div>;
@@ -176,15 +211,40 @@ function Analytics({ session }) {
             {!loading && !error && (
                 <>
                     {/* Plan Overview - only show on MONTHS view */}
-                    {viewMode === VIEW_MODES.MONTHS && categoryData.length > 0 && (
+                    {viewMode === VIEW_MODES.MONTHS && chartData.length > 0 && (
                         <div className="bg-[#1f2937] p-6 rounded-xl border border-gray-700">
-                            <h3 className="text-xl font-bold text-white mb-4">Plan Overview</h3>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-white">
+                                    {selectedCategory ? `Plan Overview: ${selectedCategory}` : "Plan Overview"}
+                                </h3>
+                                {selectedCategory && (
+                                    <button
+                                        onClick={handleBackToCategories}
+                                        className="text-sm text-[#B2E642] hover:underline flex items-center gap-1"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                                        </svg>
+                                        Back to Overview
+                                    </button>
+                                )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Stats */}
                                 <div className="flex flex-col gap-4">
                                     <div className="bg-[#111827] p-4 rounded-lg border border-gray-700">
-                                        <p className="text-gray-400 text-sm mb-1">Total Workouts</p>
-                                        <p className="text-4xl font-bold text-[#B2E642]">{sessions.length}</p>
+                                        <p className="text-gray-400 text-sm mb-2">Total Work</p>
+                                        <div className="flex items-center gap-6 mt-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <p className="text-4xl font-bold text-[#B2E642]">{totalSessions}</p>
+                                                <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Sessions</p>
+                                            </div>
+                                            <div className="h-8 w-[1px] bg-gray-700"></div>
+                                            <div className="flex items-baseline gap-2">
+                                                <p className="text-4xl font-bold text-[#B2E642]">{uniqueDaysCount}</p>
+                                                <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Days</p>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="bg-[#111827] p-4 rounded-lg border border-gray-700">
                                         <p className="text-gray-400 text-sm mb-1">Total Duration</p>
@@ -197,7 +257,7 @@ function Analytics({ session }) {
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie
-                                                data={categoryData}
+                                                data={chartData}
                                                 cx="50%"
                                                 cy="50%"
                                                 innerRadius={60}
@@ -207,9 +267,10 @@ function Analytics({ session }) {
                                                 dataKey="value"
                                                 label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                                                 labelLine={false}
-                                                style={{ fontSize: '14px', fontWeight: 'bold' }}
+                                                onClick={handleCategoryClick}
+                                                style={{ fontSize: '14px', fontWeight: 'bold', cursor: selectedCategory ? 'default' : 'pointer' }}
                                             >
-                                                {categoryData.map((entry, index) => (
+                                                {chartData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>
@@ -225,6 +286,32 @@ function Analytics({ session }) {
                                     </ResponsiveContainer>
                                 </div>
                             </div>
+
+                            {/* Active Combinations List (only in drill-down) */}
+                            {selectedCategory && filteredActivities.some(a => a.Exercise?.Combinations) && (
+                                <div className="mt-8 border-t border-gray-700 pt-6">
+                                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                                        Combinations in this Plan
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Array.from(new Set(filteredActivities
+                                            .filter(a => a.Exercise?.Combinations)
+                                            .map(a => JSON.stringify({
+                                                ex: a.Exercise.Name,
+                                                comb: a.Exercise.Combinations
+                                            }))
+                                        )).map(itemJson => {
+                                            const item = JSON.parse(itemJson);
+                                            return (
+                                                <div key={itemJson} className="bg-[#111827] p-3 rounded-lg border border-gray-800">
+                                                    <p className="text-[#B2E642] text-xs font-bold uppercase">{item.ex}</p>
+                                                    <p className="text-white text-sm mt-1 italic">{item.comb}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -94,11 +94,21 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-[#1f2937] p-6 rounded-xl border border-gray-700">
-                            <h3 className="text-gray-400 text-sm mb-2">Total Workouts</h3>
-                            <p className="text-4xl font-bold text-[#B2E642]">{sessions.length}</p>
+                            <p className="text-gray-400 text-sm mb-2">Total Work</p>
+                            <div className="flex items-center gap-6 mt-1">
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-4xl font-bold text-[#B2E642]">{sessions.length}</p>
+                                    <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Sessions</p>
+                                </div>
+                                <div className="h-8 w-[1px] bg-gray-700"></div>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-4xl font-bold text-[#B2E642]">{new Set(sessions.map(s => s.Date.split('T')[0])).size}</p>
+                                    <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Days</p>
+                                </div>
+                            </div>
                         </div>
                         <div className="bg-[#1f2937] p-6 rounded-xl border border-gray-700">
-                            <h3 className="text-gray-400 text-sm mb-2">Total Duration</h3>
+                            <p className="text-gray-400 text-sm mb-1">Total Duration</p>
                             <p className="text-4xl font-bold text-[#B2E642]">{totalDuration} min</p>
                         </div>
                     </div>

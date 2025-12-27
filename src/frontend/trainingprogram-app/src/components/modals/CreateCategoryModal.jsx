@@ -33,11 +33,11 @@ function CreateCategoryModal({ isOpen, onClose, onCategoryCreated }) {
         .from("Categories")
         .insert({
           Name: name,
-          UserId: user.id 
+          UserId: user.id
         })
-        .select() 
+        .select()
         .single();
-      
+
       if (insertError) throw insertError;
       newCategory = data;
 
@@ -46,16 +46,16 @@ function CreateCategoryModal({ isOpen, onClose, onCategoryCreated }) {
     } finally {
       setIsSaving(false);
       if (newCategory) {
-        onCategoryCreated(newCategory); 
-        setName(""); 
+        onCategoryCreated(newCategory);
+        setName("");
+      }
     }
-  }
-};
+  };
 
   if (!isOpen) return null;
 
   return (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex justify-center items-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex justify-center items-center p-4">
 
       <div className="bg-[#1f2937] text-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h3 className="text-lg font-bold text-white mb-4">New Category</h3>
@@ -68,7 +68,7 @@ function CreateCategoryModal({ isOpen, onClose, onCategoryCreated }) {
             className="p-2 bg-[#303E52]"
             labelClassName="text-sm font-medium text-gray-400 mb-1"
           />
-          
+
           {error && <FeedbackMessage message={error} type="error" />}
 
           <div className="flex justify-end space-x-3 pt-2">
@@ -78,10 +78,10 @@ function CreateCategoryModal({ isOpen, onClose, onCategoryCreated }) {
               disabled={isSaving}
               className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
             >
-              Cancelar
+              Cancel
             </button>
             <PrimaryButton
-              type="submit" 
+              type="submit"
               className="font-bold py-2"
               disabled={isSaving}
             >

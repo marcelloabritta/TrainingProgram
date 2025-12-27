@@ -15,6 +15,8 @@ function CreateExerciseModal({
 }) {
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [combinations, setCombinations] = useState("");
+  const [isCombined, setIsCombined] = useState(false);
 
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -31,9 +33,13 @@ function CreateExerciseModal({
       if (isEditMode) {
         setName(exerciseToEdit.Name || "");
         setCategoryId(exerciseToEdit.CategoryId || "");
+        setCombinations(exerciseToEdit.Combinations || "");
+        setIsCombined(Boolean(exerciseToEdit.Combinations));
       } else {
         setName("");
         setCategoryId(preselectedCategoryId || "");
+        setCombinations("");
+        setIsCombined(false);
       }
 
       const fetchCategories = async () => {
@@ -71,6 +77,7 @@ function CreateExerciseModal({
     const exerciseData = {
       Name: name,
       CategoryId: categoryId,
+      Combinations: isCombined ? combinations : null,
     };
 
     try {
@@ -104,7 +111,7 @@ function CreateExerciseModal({
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-white mb-4">
-          {isEditMode ? "Edit Exercise" : "New Exercise"}
+          {isEditMode ? "Edit Activity" : "New Activity"}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,6 +125,34 @@ function CreateExerciseModal({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
+
+          {/* Toggle for Combinations */}
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="checkbox"
+              id="isCombined"
+              checked={isCombined}
+              onChange={(e) => setIsCombined(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#B2E642] focus:ring-[#B2E642]"
+            />
+            <label htmlFor="isCombined" className="text-sm font-medium text-gray-400 cursor-pointer">
+              This is a Combined/Complex Activity
+            </label>
+          </div>
+
+          {isCombined && (
+            <div>
+              <InputField
+                label="Combinations / Internal details"
+                type="text"
+                placeholder="Ex: Technics + Speed"
+                value={combinations}
+                className="p-2 bg-[#303E52] mb-5"
+                labelClassName="text-sm font-medium text-gray-400 mb-1"
+                onChange={(e) => setCombinations(e.target.value)}
+              />
+            </div>
+          )}
 
           <div>
             <label
@@ -169,7 +204,7 @@ function CreateExerciseModal({
               Cancel
             </button>
             <PrimaryButton className="font-bold py-2" type="submit">
-              {isEditMode? "Save Changes": "Create"}
+              {isEditMode ? "Save Changes" : "Create"}
             </PrimaryButton>
           </div>
         </form>

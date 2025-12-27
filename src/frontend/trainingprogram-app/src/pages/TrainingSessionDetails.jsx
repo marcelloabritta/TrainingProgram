@@ -34,15 +34,15 @@ function TrainingSessionDetails() {
   };
 
   const openEditModal = (activity) => {
-        setActivityToEdit(activity); 
-        openCreateModal();          
-    };
+    setActivityToEdit(activity);
+    openCreateModal();
+  };
 
 
-    const closeCreateModal = () => {
-        setIsCreateModalOpen(false);
-        setActivityToEdit(null); 
-    };
+  const closeCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setActivityToEdit(null);
+  };
 
   useEffect(() => {
     const fetchSessionDetails = async () => {
@@ -52,7 +52,7 @@ function TrainingSessionDetails() {
 
         const { data, error } = await supabase
           .from("TrainingSessions")
-          .select("*, Activities(*, Category:Categories (Name), Exercise:Exercises (Name))")
+          .select("*, Activities(*, Category:Categories (Name), Exercise:Exercises (Name, Combinations))")
           .eq("Id", sessionId)
           .single();
 
@@ -133,32 +133,32 @@ function TrainingSessionDetails() {
   };
 
   const handleUpdateActivity = async (activityId, updatedData) => {
-        try {
-            // 1. Fale com o Supabase para ATUALIZAR
-            const { data, error } = await supabase
-                .from('Activities')
-                .update(updatedData)
-                .eq('Id', activityId) // Onde o ID bate
-                .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
-                .single();
+    try {
+      // 1. Fale com o Supabase para ATUALIZAR
+      const { data, error } = await supabase
+        .from('Activities')
+        .update(updatedData)
+        .eq('Id', activityId) // Onde o ID bate
+        .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
+        .single();
 
-            if (error) throw error;
+      if (error) throw error;
 
-            if (data) {
-                // 2. ATUALIZE A TELA (lógica de "substituição")
-                setTrainingSession(currentSession => ({
-                    ...currentSession,
-                    // Crie um novo array: se o ID bater, use o 'data' novo, senão, mantenha o antigo
-                    Activities: currentSession.Activities.map(
-                        act => act.Id === activityId ? data : act
-                    )
-                }));
-                closeCreateModal(); // Fecha o modal após o sucesso
-            }
-        } catch (err) {
-            setError(`Error updating activity: ${err.message}`);
-        }
-    };
+      if (data) {
+        // 2. ATUALIZE A TELA (lógica de "substituição")
+        setTrainingSession(currentSession => ({
+          ...currentSession,
+          // Crie um novo array: se o ID bater, use o 'data' novo, senão, mantenha o antigo
+          Activities: currentSession.Activities.map(
+            act => act.Id === activityId ? data : act
+          )
+        }));
+        closeCreateModal(); // Fecha o modal após o sucesso
+      }
+    } catch (err) {
+      setError(`Error updating activity: ${err.message}`);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 p-4">

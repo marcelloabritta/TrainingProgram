@@ -39,8 +39,13 @@ function ActivityList({ activity, onDelete, onEdit }) {
           className="text-gray-400 text-lg"
         />
         <div className="flex-col">
-          <p>{categoryName}</p>
+          <p className="text-sm text-gray-400">{categoryName}</p>
           <p >{exerciseName}<span className="text-[#B2E642]"> ({activity.DurationMinutes} min)</span></p>
+          {activity.Exercise?.Combinations && (
+            <p className="text-xs text-gray-500 italic mt-1">
+              Comb: {activity.Exercise.Combinations}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-4 text-gray-400">

@@ -24,8 +24,8 @@ function ExerciseLibrary() {
   const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
   const [isDeleteCategoryModalOpen, setIsDeleteCategoryModalOpen] = useState(false);
 
-  const [categoryToEdit, setCategoryToEdit] = useState(null); 
-  const [categoryToDelete, setCategoryToDelete] = useState(null); 
+  const [categoryToEdit, setCategoryToEdit] = useState(null);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
 
   const [exerciseToEdit, setExerciseToEdit] = useState(null);
   const [isDeleteExerciseModalOpen, setIsDeleteExerciseModalOpen] = useState(false);
@@ -33,13 +33,13 @@ function ExerciseLibrary() {
 
   const [preselectedCategoryId, setPreselectedCategoryId] = useState(null);
 
-  
+
   const openCreateCategoryModal = () => setIsCategoryModalOpen(true);
   const closeCreateCategoryModal = () => setIsCategoryModalOpen(false);
 
   const openCreateExerciseModal = (categoryId) => {
-    setPreselectedCategoryId(categoryId); 
-    setExerciseToEdit(null); 
+    setPreselectedCategoryId(categoryId);
+    setExerciseToEdit(null);
     setIsExerciseModalOpen(true);
   };
 
@@ -51,7 +51,7 @@ function ExerciseLibrary() {
 
   const closeCreateExerciseModal = () => {
     setIsExerciseModalOpen(false);
-    setPreselectedCategoryId(null); 
+    setPreselectedCategoryId(null);
     setExerciseToEdit(null);
   };
 
@@ -62,7 +62,7 @@ function ExerciseLibrary() {
   const closeDeleteExerciseModal = () => {
     setExerciseToDelete(null);
     setIsDeleteExerciseModalOpen(false);
-  };  
+  };
 
   const openEditCategoryModal = (category) => {
     setCategoryToEdit(category);
@@ -93,8 +93,8 @@ function ExerciseLibrary() {
         setLoading(true);
         setError(null);
 
-        const {data: {user}, error: authError} = await supabase.auth.getUser();
-        if(authError) throw authError;
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         setCurrentUser(user);
 
         const { data, error } = await supabase
@@ -102,7 +102,8 @@ function ExerciseLibrary() {
           .select(`
             *,
             Exercises ( * ) 
-          `) 
+          `)
+          .or(`UserId.is.null,UserId.eq.${user.id}`)
           .order("Name", { ascending: true });
 
         if (error) throw error;
@@ -122,7 +123,7 @@ function ExerciseLibrary() {
   }, [setTitle, setShowBackButton]);
 
   const handleCreateCategory = (newCategory) => {
-    setCategoriesData(current => [...current, newCategory].sort((a,b) => a.Name.localeCompare(b.Name)));
+    setCategoriesData(current => [...current, newCategory].sort((a, b) => a.Name.localeCompare(b.Name)));
     closeCreateCategoryModal();
   };
 
@@ -131,20 +132,20 @@ function ExerciseLibrary() {
 
       const dataToInsert = {
         ...newExerciseData,
-        UserId: currentUser.id 
+        UserId: currentUser.id
       };
 
-        const { data, error} = await supabase
-                                    .from("Exercises")
-                                    .insert(dataToInsert)
-                                    .select("*, Category:Categories ( Name )")
-                                    .single();
-        if(error) throw error;
-        
-        const newExercise = data;
+      const { data, error } = await supabase
+        .from("Exercises")
+        .insert(dataToInsert)
+        .select("*, Category:Categories ( Name )")
+        .single();
+      if (error) throw error;
+
+      const newExercise = data;
 
       if (newExercise) {
-        setCategoriesData(currentCategories => {  
+        setCategoriesData(currentCategories => {
           return currentCategories.map(category => {
             if (category.Id === newExercise.CategoryId) {
               return {
@@ -152,16 +153,16 @@ function ExerciseLibrary() {
                 Exercises: [...category.Exercises, newExercise]
               };
             }
-            
+
             return category;
           });
         });
-        
+
         // 3. Fecha o modal
         closeCreateExerciseModal();
       }
-    } catch(err) {
-        setError(err.message);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -173,7 +174,7 @@ function ExerciseLibrary() {
         .eq("Id", exerciseId)
         .select()
         .single();
-      
+
       if (error) throw error;
 
       if (updatedExercise) {
@@ -182,7 +183,7 @@ function ExerciseLibrary() {
             if (category.Id === updatedExercise.CategoryId) {
               return {
                 ...category,
-                Exercises: category.Exercises.map(ex => 
+                Exercises: category.Exercises.map(ex =>
                   ex.Id === updatedExercise.Id ? updatedExercise : ex
                 )
               };
@@ -190,7 +191,7 @@ function ExerciseLibrary() {
             return category;
           })
         );
-        closeCreateExerciseModal(); 
+        closeCreateExerciseModal();
       }
     } catch (err) {
       setError(err.message);
@@ -204,7 +205,7 @@ function ExerciseLibrary() {
         .from("Exercises")
         .delete()
         .eq("Id", exerciseToDelete.Id);
-      
+
       if (error) throw error;
 
       setCategoriesData(currentCategories =>
@@ -212,7 +213,7 @@ function ExerciseLibrary() {
           if (category.Id === exerciseToDelete.CategoryId) {
             return {
               ...category,
-              Exercises: category.Exercises.filter(ex => 
+              Exercises: category.Exercises.filter(ex =>
                 ex.Id !== exerciseToDelete.Id
               )
             };
@@ -220,7 +221,7 @@ function ExerciseLibrary() {
           return category;
         })
       );
-      closeDeleteExerciseModal(); 
+      closeDeleteExerciseModal();
 
     } catch (err) {
       setError(err.message);
@@ -228,8 +229,8 @@ function ExerciseLibrary() {
   };
 
   const handleCategoryUpdated = (updatedCategory) => {
-    setCategoriesData(current => 
-      current.map(cat => 
+    setCategoriesData(current =>
+      current.map(cat =>
         cat.Id === updatedCategory.Id ? updatedCategory : cat
       )
     );
@@ -242,11 +243,11 @@ function ExerciseLibrary() {
       const { error } = await supabase
         .from("Categories")
         .delete()
-        .eq("Id", categoryToDelete.Id); 
+        .eq("Id", categoryToDelete.Id);
 
       if (error) throw error;
 
-      setCategoriesData(current => 
+      setCategoriesData(current =>
         current.filter(cat => cat.Id !== categoryToDelete.Id)
       );
       closeDeleteCategoryModal();
@@ -257,7 +258,7 @@ function ExerciseLibrary() {
   };
 
   const handleToggleCategory = (categoryId) => {
-    setExpandedCategoryId(currentId => 
+    setExpandedCategoryId(currentId =>
       currentId === categoryId ? null : categoryId
     );
   };
@@ -279,39 +280,39 @@ function ExerciseLibrary() {
 
       <div className="space-y-4">
 
-      {categoriesData && categoriesData.length > 0 ? (
-    // ---- Parte VERDADEIRA (se a lista NÃO está vazia) ----
-    categoriesData.map((category) => (
-      <CategoryCard
-        key={category.Id}
-        category={category}
-        currentUser={currentUser}
-        isExpanded={expandedCategoryId === category.Id}
-        onToggle={() => handleToggleCategory(category.Id)}
-        onEditCategory={() => openEditCategoryModal(category)}
-        onDeleteCategory={() => openDeleteCategoryModal(category)}
-        onCreateExercise={() => openCreateExerciseModal(category.Id)}
-        onEditExercise={(exercise) => openEditExerciseModal(exercise)}
-        onDeleteExercise={(exercise) => openDeleteExerciseModal(exercise)}
-      />
-    )) 
-  ) : (
-    <div className="text-center bg-[#1f2937] border-2 border-dashed border-gray-600 text-gray-400 rounded-lg p-8">
-      <p className="font-semibold">No categories added yet.</p>
-      <p className="text-sm mt-1">
-        Click the '+' button to add the first one.
-      </p>
-    </div>
-  )}
+        {categoriesData && categoriesData.length > 0 ? (
+          // ---- Parte VERDADEIRA (se a lista NÃO está vazia) ----
+          categoriesData.map((category) => (
+            <CategoryCard
+              key={category.Id}
+              category={category}
+              currentUser={currentUser}
+              isExpanded={expandedCategoryId === category.Id}
+              onToggle={() => handleToggleCategory(category.Id)}
+              onEditCategory={() => openEditCategoryModal(category)}
+              onDeleteCategory={() => openDeleteCategoryModal(category)}
+              onCreateExercise={() => openCreateExerciseModal(category.Id)}
+              onEditExercise={(exercise) => openEditExerciseModal(exercise)}
+              onDeleteExercise={(exercise) => openDeleteExerciseModal(exercise)}
+            />
+          ))
+        ) : (
+          <div className="text-center bg-[#1f2937] border-2 border-dashed border-gray-600 text-gray-400 rounded-lg p-8">
+            <p className="font-semibold">No categories added yet.</p>
+            <p className="text-sm mt-1">
+              Click the '+' button to add the first one.
+            </p>
+          </div>
+        )}
       </div>
 
-     {isExerciseModalOpen && (
+      {isExerciseModalOpen && (
         <CreateExerciseModal
           isOpen={isExerciseModalOpen}
-          onClose={closeCreateExerciseModal} 
+          onClose={closeCreateExerciseModal}
           onCreate={handleCreateExercise}
-          onUpdate={handleUpdateExercise} 
-          exerciseToEdit={exerciseToEdit} 
+          onUpdate={handleUpdateExercise}
+          exerciseToEdit={exerciseToEdit}
           preselectedCategoryId={preselectedCategoryId}
         />
       )}
@@ -320,8 +321,8 @@ function ExerciseLibrary() {
           isOpen={isDeleteExerciseModalOpen}
           onClose={closeDeleteExerciseModal}
           onConfirm={confirmDeleteExercise}
-          title="Delete Exercise"
-          message={`Are you sure you want to delete the exercise "${exerciseToDelete?.Name}"? This will also remove it from all training plans where it is used. This action cannot be undone`}
+          title="Delete Activity"
+          message={`Are you sure you want to delete the activity "${exerciseToDelete?.Name}"? This will also remove it from all training plans where it is used. This action cannot be undone`}
         />
       )}
 
@@ -329,7 +330,7 @@ function ExerciseLibrary() {
         <CreateCategoryModal
           isOpen={isCategoryModalOpen}
           onClose={closeCreateCategoryModal}
-          onCategoryCreated={handleCreateCategory} 
+          onCategoryCreated={handleCreateCategory}
         />
       )}
 

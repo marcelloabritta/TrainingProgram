@@ -34,9 +34,14 @@ function CreateActivityModal({
 
       const fetchCategories = async () => {
         try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError) throw authError;
+          const userId = user.id;
+
           const { data, error } = await supabase
             .from("Categories")
             .select("Id, Name")
+            .or(`UserId.is.null,UserId.eq.${userId}`)
             .order("Name");
           if (error) throw error;
           setCategories(data || []);
@@ -73,10 +78,15 @@ function CreateActivityModal({
       setLoadingExercises(true);
       setExercises([]);
       try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        const userId = user.id;
+
         const { data, error } = await supabase
           .from("Exercises")
-          .select("Id, Name")
+          .select("Id, Name, Combinations")
           .eq("CategoryId", categoryId)
+          .or(`UserId.is.null,UserId.eq.${userId}`)
           .order("Name");
 
         if (error) throw error;
@@ -177,9 +187,11 @@ function CreateActivityModal({
               disabled={loadingExercises || !categoryId}
               className={`w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642] ${!categoryId ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <option value="">{loadingExercises ? "Loading..." : "Select an exercise"}</option>
+              <option value="">{loadingExercises ? "Loading..." : "Select an activity"}</option>
               {exercises.map(ex => (
-                <option key={ex.Id} value={ex.Id}>{ex.Name}</option>
+                <option key={ex.Id} value={ex.Id}>
+                  {ex.Name}{ex.Combinations ? ` (${ex.Combinations})` : ''}
+                </option>
               ))}
             </select>
           </div>
