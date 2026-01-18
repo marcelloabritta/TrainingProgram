@@ -1,225 +1,480 @@
-import React, { useEffect, useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { supabase } from '../../config/supabaseClient';
+import React, { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { supabase } from "../../config/supabaseClient";
 
-const COLORS = ['#B2E642', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6'];
+const COLORS = ["#B2E642", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6"];
 
 function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
-    const [activities, setActivities] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [modalExerciseData, setModalExerciseData] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
-    // Fetch activities for all sessions in this month
-    useEffect(() => {
-        const fetchActivities = async () => {
-            if (!sessions || sessions.length === 0) {
-                setActivities([]);
-                setLoading(false);
-                return;
-            }
+  // Detect mobile screen
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
 
-            try {
-                setLoading(true);
-                const sessionIds = sessions.map(s => s.Id);
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
 
-                const { data, error } = await supabase
-                    .from("Activities")
-                    .select("*, Category:Categories(Name)")
-                    .in("TrainingSessionId", sessionIds);
+  // Fetch activities for all sessions in this month
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (!sessions || sessions.length === 0) {
+        setActivities([]);
+        setLoading(false);
+        return;
+      }
 
-                if (error) throw error;
-                setActivities(data || []);
-            } catch (err) {
-                console.error("Error fetching activities:", err);
-                setActivities([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+      try {
+        setLoading(true);
+        const sessionIds = sessions.map((s) => s.Id);
 
-        fetchActivities();
-    }, [sessions]);
+        const { data, error } = await supabase
+          .from("Activities")
+          .select("*, Category:Categories(Name)")
+          .in("TrainingSessionId", sessionIds);
 
-    // Sort sessions by date ascending
-    const sortedSessions = [...sessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+        if (error) throw error;
+        setActivities(data || []);
+      } catch (err) {
+        console.error("Error fetching activities:", err);
+        setActivities([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Prepare data for Period PieChart
-    const periodData = sessions.reduce((acc, session) => {
-        const period = session.Period || "Unknown";
-        const existing = acc.find(item => item.name === period);
-        if (existing) {
-            existing.value++;
-        } else {
-            acc.push({ name: period, value: 1 });
-        }
-        return acc;
-    }, []);
+    fetchActivities();
+  }, [sessions]);
 
-    // Prepare data for Category PieChart (from activities)
-    const categoryData = activities.reduce((acc, activity) => {
-        const categoryName = activity.Category ? activity.Category.Name : "Unknown";
-        const existing = acc.find(item => item.name === categoryName);
-        if (existing) {
-            existing.value += activity.DurationMinutes;
-        } else {
-            acc.push({ name: categoryName, value: activity.DurationMinutes });
-        }
-        return acc;
-    }, []);
+  // Sort sessions by date ascending
+  const sortedSessions = [...sessions].sort(
+    (a, b) => new Date(a.Date) - new Date(b.Date),
+  );
 
-    // Calculate total duration
-    const totalDuration = activities.reduce((sum, activity) => sum + (activity.DurationMinutes || 0), 0);
+  // Prepare data for Period PieChart
+  const periodData = sessions.reduce((acc, session) => {
+    const period = session.Period || "Unknown";
+    const existing = acc.find((item) => item.name === period);
+    if (existing) {
+      existing.value++;
+    } else {
+      acc.push({ name: period, value: 1 });
+    }
+    return acc;
+  }, []);
 
-    return (
-        <div className="flex flex-col gap-4 w-full">
-            <div className="flex items-center gap-4 mb-4">
-                <button
-                    onClick={onBack}
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                    </svg>
-                    Back to Months
-                </button>
-                <h2 className="text-2xl font-bold text-white">
-                    Workouts in {format(monthDate, 'MMMM yyyy')}
-                </h2>
+  // Prepare data for Category PieChart (from activities)
+  const categoryData = activities.reduce((acc, activity) => {
+    const categoryName = activity.Category ? activity.Category.Name : "Unknown";
+    const existing = acc.find((item) => item.name === categoryName);
+    if (existing) {
+      existing.value += activity.DurationMinutes;
+    } else {
+      acc.push({ name: categoryName, value: activity.DurationMinutes });
+    }
+    return acc;
+  }, []);
+
+  // Calculate total duration
+  const totalDuration = activities.reduce(
+    (sum, activity) => sum + (activity.DurationMinutes || 0),
+    0,
+  );
+
+  // Filter data for selected category
+  const categoryActivities = activities;
+
+  const categorySessions = sessions;
+
+  const categoryTotalDuration = categoryActivities.reduce(
+    (sum, activity) => sum + (activity.DurationMinutes || 0),
+    0,
+  );
+
+  // Prepare data for Category PieChart (filtered or all)
+  const displayCategoryData = categoryData;
+
+  const [dayModalOpen, setDayModalOpen] = useState(false);
+  const [dayModalSessions, setDayModalSessions] = useState([]);
+  const [selectedDayDate, setSelectedDayDate] = useState(null);
+
+  const handleDayClick = (date, daySessions) => {
+    if (daySessions.length === 1) {
+      // Optional: If you want to skip modal for single session, uncomment below.
+      // However, user asked "queria q seja possivel ver todos" and "diga se foi quando foi o peridoo".
+      // Showing the modal always provides better context about the period even for 1 session.
+      // onWorkoutClick(daySessions[0]);
+      // return;
+    }
+
+    if (daySessions.length > 0) {
+      setSelectedDayDate(date);
+      setDayModalSessions(daySessions);
+      setDayModalOpen(true);
+    }
+  };
+
+  const closeDayModal = () => {
+    setDayModalOpen(false);
+    setDayModalSessions([]);
+    setSelectedDayDate(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-4 sm:gap-6 w-full">
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={onBack}
+          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Back to Months
+        </button>
+        <h2 className="text-2xl font-bold text-white">
+          Works in {format(monthDate, "MMMM yyyy")}
+        </h2>
+      </div>
+
+      {loading && (
+        <div className="text-center text-[#B2E642]">Loading details...</div>
+      )}
+
+      {!loading && (
+        <>
+          {/* Month Overview - show when no category is selected or after category details */}
+          <div className="bg-[#1f2937] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-700">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h3 className="text-xl sm:text-2xl font-bold text-white">
+                Month Overview
+              </h3>
             </div>
-
-            {loading && <div className="text-center text-[#B2E642]">Loading details...</div>}
-
-            {!loading && (
-                <>
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-[#1f2937] p-6 rounded-xl border border-gray-700">
-                            <p className="text-gray-400 text-sm mb-2">Total Work</p>
-                            <div className="flex items-center gap-6 mt-1">
-                                <div className="flex items-baseline gap-2">
-                                    <p className="text-4xl font-bold text-[#B2E642]">{sessions.length}</p>
-                                    <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Sessions</p>
-                                </div>
-                                <div className="h-8 w-[1px] bg-gray-700"></div>
-                                <div className="flex items-baseline gap-2">
-                                    <p className="text-4xl font-bold text-[#B2E642]">{new Set(sessions.map(s => s.Date.split('T')[0])).size}</p>
-                                    <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Days</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-[#1f2937] p-6 rounded-xl border border-gray-700">
-                            <p className="text-gray-400 text-sm mb-1">Total Duration</p>
-                            <p className="text-4xl font-bold text-[#B2E642]">{totalDuration} min</p>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+              {/* Stats */}
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="bg-[#111827] p-3 sm:p-4 rounded-lg border border-gray-700">
+                  <p className="text-gray-400 text-sm mb-2 sm:mb-3">
+                    Total Work
+                  </p>
+                  <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-2 sm:gap-3 sm:gap-6">
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
+                        {sessions.length}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wider font-semibold">
+                        Sessions
+                      </p>
                     </div>
+                    <div className="hidden sm:block h-6 sm:h-8 w-[1px] bg-gray-700"></div>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
+                        {
+                          new Set(sessions.map((s) => s.Date.split("T")[0]))
+                            .size
+                        }
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wider font-semibold">
+                        Days
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#111827] p-3 sm:p-4 rounded-lg border border-gray-700">
+                  <p className="text-gray-400 text-sm mb-1 sm:mb-2">
+                    Total Duration
+                  </p>
+                  <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
+                    {totalDuration} min
+                  </p>
+                </div>
+              </div>
 
-                    {/* Charts Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Calendar Timeline */}
-                        <div className="bg-[#111827] p-4 rounded-xl border border-gray-800">
-                            <h3 className="text-lg font-semibold text-white mb-4 text-center">Training Days</h3>
-                            <div className="grid grid-cols-7 gap-2">
-                                {Array.from({ length: new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate() }, (_, i) => {
-                                    const day = i + 1;
-                                    const hasWorkout = sortedSessions.some(s => new Date(s.Date).getDate() === day);
-                                    const workout = sortedSessions.find(s => new Date(s.Date).getDate() === day);
+              {/* PieChart */}
+              <div className="h-72 sm:h-80 lg:h-96 min-h-[288px] sm:min-h-[320px] lg:min-h-[384px]">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={300}
+                  minHeight={288}
+                >
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      fill="#8884d8"
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ percent, value }) =>
+                        !isMobile && percent > 0.05
+                          ? `${(percent * 100).toFixed(0)}% (${value} min)`
+                          : ""
+                      }
+                      labelLine={false}
+                      style={{ fontSize: "14px", fontWeight: "bold" }}
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f2937",
+                        borderColor: "#374151",
+                        color: "#fff",
+                      }}
+                      itemStyle={{ color: "#fff" }}
+                    />
+                    {/* Legend */}
+                    <Legend
+                      wrapperStyle={{
+                        paddingTop: "20px",
+                      }}
+                      iconType="circle"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
 
-                                    return (
-                                        <div
-                                            key={day}
-                                            onClick={() => hasWorkout && onWorkoutClick(workout)}
-                                            className={`
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Calendar Timeline */}
+            <div className="bg-[#111827] p-4 rounded-xl border border-gray-800">
+              <h3 className="text-lg font-semibold text-white mb-4 text-center">
+                Training Days
+              </h3>
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from(
+                  {
+                    length: new Date(
+                      monthDate.getFullYear(),
+                      monthDate.getMonth() + 1,
+                      0,
+                    ).getDate(),
+                  },
+                  (_, i) => {
+                    const day = i + 1;
+                    const daySessions = sortedSessions.filter(
+                      (s) => new Date(s.Date).getDate() === day,
+                    );
+                    const hasWorkout = daySessions.length > 0;
+
+                    return (
+                      <div
+                        key={day}
+                        onClick={() =>
+                          hasWorkout &&
+                          handleDayClick(
+                            new Date(
+                              monthDate.getFullYear(),
+                              monthDate.getMonth(),
+                              day,
+                            ),
+                            daySessions,
+                          )
+                        }
+                        className={`
                         aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium
                         transition-all duration-200
-                        ${hasWorkout
-                                                    ? 'bg-[#B2E642] text-gray-900 cursor-pointer hover:scale-110 hover:shadow-lg'
-                                                    : 'bg-gray-800 text-gray-500'
-                                                }
+                        ${
+                          hasWorkout
+                            ? "bg-[#B2E642] text-gray-900 cursor-pointer hover:scale-110 hover:shadow-lg"
+                            : "bg-gray-800 text-gray-500"
+                        }
                       `}
-                                        >
-                                            <span className="text-xs">{day}</span>
-                                            {hasWorkout && <span className="text-[10px] mt-0.5">●</span>}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-center text-gray-500 text-xs mt-4">Click on a day to view details</p>
-                        </div>
-
-                        {/* Period Distribution Pie Chart */}
-                        <div className="bg-[#111827] p-4 rounded-xl border border-gray-800 h-[60vh] flex flex-col items-center justify-center">
-                            <h3 className="text-lg font-semibold text-white mb-2">Sessions by Period</h3>
-                            <ResponsiveContainer width="100%" height="90%">
-                                <PieChart>
-                                    <Pie
-                                        data={periodData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        fill="#8884d8"
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
-                                        labelLine={false}
-                                        style={{ fontSize: '14px', fontWeight: 'bold' }}
-                                    >
-                                        {periodData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
-                                        itemStyle={{ color: '#fff' }}
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ paddingTop: '10px' }}
-                                        iconType="circle"
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-
-                        {/* Category Distribution Pie Chart */}
-                        {categoryData.length > 0 && (
-                            <div className="bg-[#111827] p-4 rounded-xl border border-gray-800 h-[60vh] flex flex-col items-center justify-center lg:col-span-2">
-                                <h3 className="text-lg font-semibold text-white mb-2">Duration by Category</h3>
-                                <ResponsiveContainer width="100%" height="90%">
-                                    <PieChart>
-                                        <Pie
-                                            data={categoryData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={80}
-                                            outerRadius={120}
-                                            fill="#8884d8"
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
-                                            labelLine={false}
-                                            style={{ fontSize: '14px', fontWeight: 'bold' }}
-                                        >
-                                            {categoryData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
-                                            itemStyle={{ color: '#fff' }}
-                                        />
-                                        <Legend
-                                            wrapperStyle={{ paddingTop: '10px' }}
-                                            iconType="circle"
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
+                      >
+                        <span className="text-xs">{day}</span>
+                        {hasWorkout && (
+                          <div className="flex gap-0.5 mt-0.5">
+                            {daySessions.slice(0, 3).map((_, idx) => (
+                              <span key={idx} className="text-[8px]">
+                                ●
+                              </span>
+                            ))}
+                            {daySessions.length > 3 && (
+                              <span className="text-[8px]">+</span>
+                            )}
+                          </div>
                         )}
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+              <p className="text-center text-gray-500 text-xs mt-4">
+                Click on a day to view details
+              </p>
+            </div>
+
+            {/* Period Distribution Pie Chart */}
+            <div className="bg-[#111827] p-3 sm:p-4 rounded-xl border border-gray-800 flex flex-col items-center justify-center">
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Sessions by Period
+              </h3>
+              <div className="w-full h-64 min-h-[256px]">
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={300}
+                  minHeight={256}
+                >
+                  <PieChart>
+                    <Pie
+                      data={periodData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ percent, value }) =>
+                        !isMobile && percent > 0.05
+                          ? `${(percent * 100).toFixed(0)}% (${value})`
+                          : ""
+                      }
+                      labelLine={false}
+                      style={{ fontSize: "14px", fontWeight: "bold" }}
+                    >
+                      {periodData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f2937",
+                        borderColor: "#374151",
+                        color: "#fff",
+                      }}
+                      itemStyle={{ color: "#fff" }}
+                    />
+                    {/* Legend */}
+                    <Legend
+                      wrapperStyle={{
+                        paddingTop: "10px",
+                      }}
+                      iconType="circle"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Day Details Modal */}
+      {dayModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={closeDayModal}
+        >
+          <div
+            className="bg-[#1f2937] rounded-xl border border-gray-700 max-w-md w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white">
+                  {selectedDayDate && format(selectedDayDate, "dd MMMM yyyy")}
+                </h2>
+                <button
+                  onClick={closeDayModal}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {dayModalSessions.map((session) => (
+                  <div
+                    key={session.Id}
+                    onClick={() => {
+                      onWorkoutClick(session);
+                      closeDayModal();
+                    }}
+                    className="bg-[#111827] p-4 rounded-lg border border-gray-700 hover:border-[#B2E642] cursor-pointer transition-all group"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-[#B2E642] font-semibold text-lg">
+                          {session.Period || "No Period"}
+                        </span>
+                        <span className="text-gray-400 text-sm">
+                          Tap to view details
+                        </span>
+                      </div>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-gray-500 group-hover:text-[#B2E642] transition-colors"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </div>
-                </>
-            )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 }
 
 export default WorkoutView;

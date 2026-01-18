@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { format, parseISO, startOfMonth } from 'date-fns';
+import React, { useRef } from "react";
+import { format, parseISO, startOfMonth } from "date-fns";
 
 function MonthView({ sessions, onMonthClick }) {
   const isDraggingRef = useRef(false);
@@ -8,26 +8,30 @@ function MonthView({ sessions, onMonthClick }) {
   // Group sessions by month
   const sessionsByMonth = sessions.reduce((acc, session) => {
     const date = parseISO(session.Date);
-    const monthKey = format(startOfMonth(date), 'yyyy-MM');
+    const monthKey = format(startOfMonth(date), "yyyy-MM");
 
     if (!acc[monthKey]) {
       acc[monthKey] = {
         monthDate: startOfMonth(date),
         count: 0,
         sessions: [],
-        label: format(startOfMonth(date), 'MMM yyyy'),
-        month: format(startOfMonth(date), 'MMMM'),
-        year: format(startOfMonth(date), 'yyyy')
+        uniqueDays: new Set(),
+        label: format(startOfMonth(date), "MMM yyyy"),
+        month: format(startOfMonth(date), "MMMM"),
+        year: format(startOfMonth(date), "yyyy"),
       };
     }
 
     acc[monthKey].count++;
     acc[monthKey].sessions.push(session);
+    acc[monthKey].uniqueDays.add(session.Date.split("T")[0]);
     return acc;
   }, {});
 
   // Sort months ascending (oldest to newest)
-  const monthCards = Object.values(sessionsByMonth).sort((a, b) => a.monthDate - b.monthDate);
+  const monthCards = Object.values(sessionsByMonth).sort(
+    (a, b) => a.monthDate - b.monthDate,
+  );
 
   const handleMouseDown = (e) => {
     isDraggingRef.current = false;
@@ -55,52 +59,69 @@ function MonthView({ sessions, onMonthClick }) {
 
       {monthCards.length === 0 ? (
         <div className="text-center text-gray-400 p-10 bg-[#1f2937] rounded-xl border border-dashed border-gray-600">
-          No workouts found for this plan.
+          No works found for this plan.
         </div>
       ) : (
         <>
           {/* Mobile: Swipeable container | Desktop: Grid */}
           <div
-            className="md:hidden overflow-x-auto overflow-y-hidden scrollbar-hide"
+            className="md:hidden overflow-x-auto overflow-y-hidden"
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitScrollbar: { display: "none" },
+            }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onTouchStart={handleMouseDown}
             onTouchMove={handleMouseMove}
           >
-            <style jsx>{`
-              .scrollbar-hide::-webkit-scrollbar {
-                display: none;
-              }
-              .scrollbar-hide {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-              }
-            `}</style>
-            <div className="flex gap-4 snap-x snap-mandatory pb-2">
+            <div className="flex gap-3 sm:gap-4 snap-x snap-mandatory pb-2">
               {monthCards.map((monthData, index) => (
                 <div
                   key={index}
                   onClick={() => handleCardClick(monthData)}
-                  className="flex-shrink-0 w-72 bg-gradient-to-br from-[#1f2937] to-[#111827] p-6 rounded-xl border-2 border-gray-700 hover:border-[#B2E642] transition-all cursor-pointer snap-start group shadow-lg hover:shadow-[#B2E642]/20 select-none"
+                  className="flex-shrink-0 w-72 bg-gradient-to-br from-[#1f2937] to-[#111827] p-4 sm:p-6 lg:p-8 rounded-xl border-2 border-gray-700 hover:border-[#B2E642] transition-all cursor-pointer snap-start group shadow-lg hover:shadow-[#B2E642]/20 select-none"
                 >
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-2xl font-bold text-white group-hover:text-[#B2E642] transition-colors">
                         {monthData.month}
                       </h3>
-                      <span className="text-sm text-gray-400 bg-gray-800 px-2 py-1 rounded">{monthData.year}</span>
+                      <span className="text-sm text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                        {monthData.year}
+                      </span>
                     </div>
 
                     <div className="flex items-baseline gap-2 mt-2">
-                      <span className="text-6xl font-bold text-[#B2E642]">{monthData.count}</span>
-                      <span className="text-gray-400 text-base">workout{monthData.count !== 1 ? 's' : ''}</span>
+                      <span className="text-6xl font-bold text-[#B2E642]">
+                        {monthData.count}
+                      </span>
+                      <span className="text-gray-400 text-base">sessions</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-2xl font-bold text-[#B2E642]">
+                        {monthData.uniqueDays.size}
+                      </span>
+                      <span className="text-gray-400 text-sm">days</span>
                     </div>
 
                     <div className="flex items-center gap-2 text-gray-400 text-sm mt-3 pt-3 border-t border-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:text-[#B2E642] transition-colors" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 group-hover:text-[#B2E642] transition-colors"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
                       </svg>
-                      <span className="group-hover:text-white transition-colors">Tap to view details</span>
+                      <span className="group-hover:text-white transition-colors">
+                        Tap to view details
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -113,7 +134,9 @@ function MonthView({ sessions, onMonthClick }) {
             {monthCards.map((monthData, index) => (
               <div
                 key={index}
-                onClick={() => onMonthClick(monthData.monthDate, monthData.sessions)}
+                onClick={() =>
+                  onMonthClick(monthData.monthDate, monthData.sessions)
+                }
                 className="bg-gradient-to-br from-[#1f2937] to-[#111827] p-6 rounded-xl border-2 border-gray-700 hover:border-[#B2E642] transition-all cursor-pointer group shadow-lg hover:shadow-[#B2E642]/20"
               >
                 <div className="flex flex-col gap-3">
@@ -121,19 +144,40 @@ function MonthView({ sessions, onMonthClick }) {
                     <h3 className="text-2xl font-bold text-white group-hover:text-[#B2E642] transition-colors">
                       {monthData.month}
                     </h3>
-                    <span className="text-sm text-gray-400 bg-gray-800 px-2 py-1 rounded">{monthData.year}</span>
+                    <span className="text-sm text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                      {monthData.year}
+                    </span>
                   </div>
 
                   <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-6xl font-bold text-[#B2E642]">{monthData.count}</span>
-                    <span className="text-gray-400 text-base">workout{monthData.count !== 1 ? 's' : ''}</span>
+                    <span className="text-6xl font-bold text-[#B2E642]">
+                      {monthData.count}
+                    </span>
+                    <span className="text-gray-400 text-base">sessions</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-bold text-[#B2E642]">
+                      {monthData.uniqueDays.size}
+                    </span>
+                    <span className="text-gray-400 text-sm">days</span>
                   </div>
 
                   <div className="flex items-center gap-2 text-gray-400 text-sm mt-3 pt-3 border-t border-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:text-[#B2E642] transition-colors" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 group-hover:text-[#B2E642] transition-colors"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
                     </svg>
-                    <span className="group-hover:text-white transition-colors">Click to view details</span>
+                    <span className="group-hover:text-white transition-colors">
+                      Click to view details
+                    </span>
                   </div>
                 </div>
               </div>
