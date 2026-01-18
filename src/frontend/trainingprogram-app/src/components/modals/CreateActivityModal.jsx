@@ -18,6 +18,10 @@ function CreateActivityModal({
   const [duration, setDuration] = useState(15);
   const [error, setError] = useState(null);
 
+  // New state for variation
+  const [selectedVariation, setSelectedVariation] = useState("");
+  const [availableVariations, setAvailableVariations] = useState([]);
+
   const [categories, setCategories] = useState([]);
   const [exercises, setExercises] = useState([]);
 
@@ -57,11 +61,15 @@ function CreateActivityModal({
         setFormat(activityToEdit.Format);
         setCategoryId(activityToEdit.CategoryId || "");
         setDuration(activityToEdit.DurationMinutes);
+        // Note: setting exerciseId and variation happens after exercises load or if we pass it directly
+        // But we rely on category change effect to load exercises.
       } else {
         setFormat("Drill");
         setCategoryId("");
         setExerciseId("");
         setDuration(15);
+        setSelectedVariation("");
+        setAvailableVariations([]);
       }
     }
   }, [isOpen, activityToEdit, isEditMode]);
@@ -71,12 +79,21 @@ function CreateActivityModal({
     if (!categoryId) {
       setExercises([]);
       setExerciseId("");
+      setSelectedVariation("");
+      setAvailableVariations([]);
       return;
     }
 
     const fetchExercises = async () => {
       setLoadingExercises(true);
       setExercises([]);
+      // Don't reset exerciseId immediately if editing, we want to match it
+      if (!isEditMode) {
+        setExerciseId("");
+        setSelectedVariation("");
+        setAvailableVariations([]);
+      }
+
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError) throw authError;
@@ -84,7 +101,7 @@ function CreateActivityModal({
 
         const { data, error } = await supabase
           .from("Exercises")
-          .select("Id, Name, Combinations")
+          .select("Id, Name, Combinations, Variations") // Fetch Variations
           .eq("CategoryId", categoryId)
           .or(`UserId.is.null,UserId.eq.${userId}`)
           .order("Name");
@@ -95,6 +112,25 @@ function CreateActivityModal({
         // Re-seleciona o exercício certo no modo de edição
         if (isEditMode && activityToEdit.CategoryId === categoryId) {
           setExerciseId(activityToEdit.ExerciseId);
+          // Set variation if exists
+          if (activityToEdit.Variation) {
+            setSelectedVariation(activityToEdit.Variation);
+          } else {
+            setSelectedVariation("");
+          }
+
+          // Also set available variations for the selected exercise
+          const selectedEx = data.find(ex => ex.Id === activityToEdit.ExerciseId);
+          if (selectedEx) {
+            if (selectedEx.Variations && Array.isArray(selectedEx.Variations)) {
+              setAvailableVariations(selectedEx.Variations);
+            } else if (selectedEx.Combinations) {
+              // Fallback for legacy
+              setAvailableVariations([selectedEx.Combinations]);
+            } else {
+              setAvailableVariations([]);
+            }
+          }
         }
       } catch (err) {
         setError(err.message);
@@ -104,6 +140,26 @@ function CreateActivityModal({
     };
     fetchExercises();
   }, [categoryId, isEditMode, activityToEdit]);
+
+  // When exercise changes, update available variations
+  const handleExerciseChange = (newExerciseId) => {
+    setExerciseId(newExerciseId);
+    const selectedEx = exercises.find(ex => ex.Id === newExerciseId);
+    setSelectedVariation(""); // Reset selection
+
+    if (selectedEx) {
+      if (selectedEx.Variations && Array.isArray(selectedEx.Variations) && selectedEx.Variations.length > 0) {
+        setAvailableVariations(selectedEx.Variations);
+        // Auto-select first one? Maybe not, force user to choose.
+      } else if (selectedEx.Combinations) {
+        setAvailableVariations([selectedEx.Combinations]);
+      } else {
+        setAvailableVariations([]);
+      }
+    } else {
+      setAvailableVariations([]);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -118,11 +174,18 @@ function CreateActivityModal({
       return;
     }
 
+    // Validate variation if available
+    if (availableVariations.length > 0 && !selectedVariation) {
+      setError("Please select a variation for this activity.");
+      return;
+    }
+
     const activityData = {
       Format: format,
       DurationMinutes: parseInt(duration),
       CategoryId: categoryId,
       ExerciseId: exerciseId,
+      Variation: selectedVariation || null // Add variation to payload
     };
 
     if (isEditMode) {
@@ -182,7 +245,7 @@ function CreateActivityModal({
             <select
               id="exercise"
               value={exerciseId}
-              onChange={(e) => setExerciseId(e.target.value)}
+              onChange={(e) => handleExerciseChange(e.target.value)}
               required
               disabled={loadingExercises || !categoryId}
               className={`w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642] ${!categoryId ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -190,14 +253,34 @@ function CreateActivityModal({
               <option value="">{loadingExercises ? "Loading..." : "Select an activity"}</option>
               {exercises.map(ex => (
                 <option key={ex.Id} value={ex.Id}>
-                  {ex.Name}{ex.Combinations ? ` (${ex.Combinations})` : ''}
+                  {ex.Name}{((ex.Variations && ex.Variations.length > 0) || ex.Combinations) ? ' (Combined)' : ''}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-          </div>
+          {/* Variation Selector */}
+          {availableVariations.length > 0 && (
+            <div className="bg-gray-800 p-3 rounded border border-gray-600">
+              <label htmlFor="variation" className="block text-sm font-medium text-[#B2E642] mb-1">
+                Select Variation / Option
+              </label>
+              <select
+                id="variation"
+                value={selectedVariation}
+                onChange={(e) => setSelectedVariation(e.target.value)}
+                required
+                className="w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642]"
+              >
+                <option value="">Select a variation</option>
+                {availableVariations.map((v, idx) => (
+                  <option key={idx} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <InputField

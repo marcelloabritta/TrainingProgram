@@ -308,11 +308,10 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                         className={`
                         aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium
                         transition-all duration-200
-                        ${
-                          hasWorkout
+                        ${hasWorkout
                             ? "bg-[#B2E642] text-gray-900 cursor-pointer hover:scale-110 hover:shadow-lg"
                             : "bg-gray-800 text-gray-500"
-                        }
+                          }
                       `}
                       >
                         <span className="text-xs">{day}</span>
@@ -445,17 +444,45 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                     className="bg-[#111827] p-4 rounded-lg border border-gray-700 hover:border-[#B2E642] cursor-pointer transition-all group"
                   >
                     <div className="flex justify-between items-center">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col w-full"> {/* Added w-full */}
                         <span className="text-[#B2E642] font-semibold text-lg">
                           {session.Period || "No Period"}
                         </span>
-                        <span className="text-gray-400 text-sm">
-                          Tap to view details
+
+                        {/* Show activities preview/summary for the session if available in component state or passed down? 
+                            The current implementation only passes session object which might not have activities embedded yet 
+                            OR it relies on `activities` state which is for the whole month.
+                            The `dayModalSessions` contains session objects.
+                            Let's check if we can filter `activities` by `session.Id` since we have `activities` state in this component.
+                         */}
+
+                        <div className="mt-2 space-y-1">
+                          {activities
+                            .filter(a => a.TrainingSessionId === session.Id)
+                            .slice(0, 3) // Preview first 3
+                            .map(a => (
+                              <div key={a.Id} className="text-gray-300 text-sm flex justify-between">
+                                <span>
+                                  {a.Exercise?.Name || "Unkown Activity"}
+                                  {a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Variation})</span> :
+                                    (a.Exercise?.Combinations && !a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Exercise.Combinations})</span> : "")}
+                                </span>
+                                <span className="text-gray-500 text-xs">{a.DurationMinutes}m</span>
+                              </div>
+                            ))
+                          }
+                          {activities.filter(a => a.TrainingSessionId === session.Id).length > 3 && (
+                            <div className="text-gray-500 text-xs italic">...and more</div>
+                          )}
+                        </div>
+
+                        <span className="text-gray-500 text-xs mt-2 text-right">
+                          Tap to view full details
                         </span>
                       </div>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-gray-500 group-hover:text-[#B2E642] transition-colors"
+                        className="h-5 w-5 text-gray-500 group-hover:text-[#B2E642] transition-colors ml-2"
                         viewBox="0 0 20 20"
                         fill="currentColor"
                       >
