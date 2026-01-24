@@ -253,7 +253,7 @@ function CreateActivityModal({
               <option value="">{loadingExercises ? "Loading..." : "Select an activity"}</option>
               {exercises.map(ex => (
                 <option key={ex.Id} value={ex.Id}>
-                  {ex.Name}{((ex.Variations && ex.Variations.length > 0) || ex.Combinations) ? ' (Combined)' : ''}
+                  {ex.Name}
                 </option>
               ))}
             </select>

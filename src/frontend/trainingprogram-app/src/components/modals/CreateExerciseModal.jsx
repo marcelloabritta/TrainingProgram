@@ -17,13 +17,16 @@ function CreateExerciseModal({
   const [categoryId, setCategoryId] = useState("");
   const [isCombined, setIsCombined] = useState(false);
   const [variations, setVariations] = useState([]);
-  const [newVariation, setNewVariation] = useState("");
 
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState(null);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [exercisesInCategory, setExercisesInCategory] = useState([]);
+  const [loadingExercises, setLoadingExercises] = useState(false);
+  const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState("");
+  const [combinationBuffer, setCombinationBuffer] = useState([]);
 
   const isEditMode = Boolean(exerciseToEdit);
 
@@ -50,7 +53,6 @@ function CreateExerciseModal({
         setName("");
         setCategoryId(preselectedCategoryId || "");
         setVariations([]);
-        setNewVariation("");
         setIsCombined(false);
       }
 
@@ -76,6 +78,43 @@ function CreateExerciseModal({
       fetchCategories();
     }
   }, [isOpen, preselectedCategoryId, exerciseToEdit, isEditMode]);
+
+  useEffect(() => {
+    if (isOpen && categoryId && isCombined) {
+      const fetchExercises = async () => {
+        setLoadingExercises(true);
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError) throw authError;
+          const userId = user.id;
+
+          const { data, error } = await supabase
+            .from("Exercises")
+            .select("Id, Name")
+            .eq("CategoryId", categoryId)
+            .or(`UserId.is.null,UserId.eq.${userId}`)
+            .order("Name");
+
+          if (error) throw error;
+
+          // Filter out the current exercise if in edit mode
+          const filtered = isEditMode
+            ? data.filter(ex => ex.Id !== exerciseToEdit.Id)
+            : data;
+
+          setExercisesInCategory(filtered || []);
+        } catch (err) {
+          console.error("Error fetching exercises:", err.message);
+        } finally {
+          setLoadingExercises(false);
+        }
+      };
+      fetchExercises();
+    } else {
+      setExercisesInCategory([]);
+      setSelectedExerciseToAdd("");
+    }
+  }, [isOpen, categoryId, isCombined, isEditMode, exerciseToEdit]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -114,13 +153,31 @@ function CreateExerciseModal({
     }
   };
 
-  const handleAddVariation = (e) => {
-    e.preventDefault(); // Prevent form submission
-    if (newVariation.trim()) {
-      if (!variations.includes(newVariation.trim())) {
-        setVariations([...variations, newVariation.trim()]);
-        setNewVariation("");
+
+
+  const handleAddExerciseAsVariation = (e) => {
+    e.preventDefault();
+    if (selectedExerciseToAdd) {
+      const ex = exercisesInCategory.find(ex => ex.Id === selectedExerciseToAdd);
+      if (ex && !combinationBuffer.includes(ex.Name)) {
+        setCombinationBuffer([...combinationBuffer, ex.Name]);
+        setSelectedExerciseToAdd("");
       }
+    }
+  };
+
+  const handleRemoveFromBuffer = (indexToRemove) => {
+    setCombinationBuffer(combinationBuffer.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleCombineAndAdd = (e) => {
+    e.preventDefault();
+    if (combinationBuffer.length > 0) {
+      const combinedName = combinationBuffer.join(" + ");
+      if (!variations.includes(combinedName)) {
+        setVariations([...variations, combinedName]);
+      }
+      setCombinationBuffer([]);
     }
   };
 
@@ -173,30 +230,67 @@ function CreateExerciseModal({
               className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#B2E642] focus:ring-[#B2E642]"
             />
             <label htmlFor="isCombined" className="text-sm font-medium text-gray-400 cursor-pointer">
-              This is a Combined/Complex Activity (Variations)
+              This is a Combined Activity
             </label>
           </div>
 
           {isCombined && (
             <div className="bg-gray-750 p-3 rounded-md border border-gray-700">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Variations / Options</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Build Combination from Existing Exercises</label>
 
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={newVariation}
-                  onChange={(e) => setNewVariation(e.target.value)}
-                  placeholder="Ex: Variation 1"
-                  className="flex-1 p-2 bg-[#303E52] text-white rounded border border-gray-600 focus:border-[#B2E642] outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddVariation}
-                  className="bg-[#B2E642] text-gray-900 font-bold px-3 py-2 rounded hover:bg-[#a3d43d]"
-                >
-                  Add
-                </button>
-              </div>
+              {exercisesInCategory.length > 0 ? (
+                <div className="flex gap-2 mb-3">
+                  <select
+                    value={selectedExerciseToAdd}
+                    onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
+                    className="flex-1 p-2 bg-[#303E52] text-white rounded border border-gray-600 focus:border-[#B2E642] outline-none"
+                  >
+                    <option value="">Select existing exercise...</option>
+                    {exercisesInCategory.map((ex) => (
+                      <option key={ex.Id} value={ex.Id}>
+                        {ex.Name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddExerciseAsVariation}
+                    disabled={!selectedExerciseToAdd}
+                    className="bg-[#303E52] text-[#B2E642] border border-[#B2E642] font-bold px-3 py-2 rounded hover:bg-[#3d4d63] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Add to List
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 italic mb-4">No other exercises found in this category.</p>
+              )}
+
+              {/* Combination Buffer Display */}
+              {combinationBuffer.length > 0 && (
+                <div className="bg-[#1f2937] p-2 rounded border border-dashed border-[#B2E642] mb-3">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {combinationBuffer.map((item, idx) => (
+                      <span key={idx} className="bg-[#303E52] text-xs text-[#B2E642] px-2 py-1 rounded flex items-center gap-1 border border-gray-600">
+                        {item}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFromBuffer(idx)}
+                          className="hover:text-red-400 font-bold"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCombineAndAdd}
+                    className="w-full bg-[#B2E642] text-gray-900 text-xs font-bold py-1.5 rounded hover:bg-[#a3d43d] transition-all"
+                  >
+                    {combinationBuffer.length === 1 ? "Add Single Activity" : `Combine as "${combinationBuffer.join(' + ')}"`}
+                  </button>
+                </div>
+              )}
 
               {variations.length > 0 ? (
                 <ul className="space-y-2 mb-2">
@@ -273,13 +367,13 @@ function CreateExerciseModal({
             </PrimaryButton>
           </div>
         </form>
-      </div>
+      </div >
       <CreateCategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onCategoryCreated={handleCategoryCreated}
       />
-    </div>
+    </div >
   );
 }
 
