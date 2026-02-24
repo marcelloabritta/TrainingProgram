@@ -12,6 +12,12 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { calcRealDuration, buildCategoryChartData } from "../utils/calcRealDuration";
+import { format } from "date-fns";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFilePdf, faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
 const VIEW_MODES = {
   MONTHS: "MONTHS",
@@ -169,24 +175,148 @@ function Analytics({ session }) {
     setModalCategoryData(null);
   };
 
-  // Prepare data for plan overview (unfiltered)
-  const planChartData = planActivities.reduce((acc, activity) => {
-    const name = activity.Category?.Name || "Unknown";
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const currentPlan = plans.find((p) => p.Id === selectedPlanId);
+    const teamName = currentPlan?.TeamName || "Unknown Team";
+    const year = currentPlan?.Year || "Unknown Year";
+    const timestamp = format(new Date(), "dd/MM/yyyy HH:mm");
 
-    const existing = acc.find((item) => item.name === name);
-    if (existing) {
-      existing.value += activity.DurationMinutes;
+    // Header
+    doc.setFontSize(24);
+    doc.setTextColor(0);
+    doc.text("TRAINING PROGRAM REPORT", 14, 22);
+
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(`Team: ${teamName}`, 14, 30);
+    doc.text(`Macrocycle: ${year}`, 14, 36);
+    doc.text(`Generated: ${timestamp}`, 14, 42);
+
+    // 1. Overall Summary
+    autoTable(doc, {
+      startY: 50,
+      head: [["Macrocycle Total Sessions", "Macrocycle Total Days", "Macrocycle Total Minutes"]],
+      body: [[planTotalSessions, planUniqueDaysCount, `${planTotalDuration} min`]],
+      theme: 'grid',
+      headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
+    });
+
+    // 2. Macrocycle Category Distribution
+    doc.setFontSize(18);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Macrocycle Category Distribution", 14, doc.lastAutoTable.finalY + 15);
+
+    const catSummaryBody = planChartData.map(cat => [
+      cat.name,
+      `${cat.value} min`,
+      planTotalDuration > 0 ? `${((cat.value / planTotalDuration) * 100).toFixed(1)}%` : "0%"
+    ]);
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 22,
+      head: [["Category", "Total Duration", "Percentage"]],
+      body: catSummaryBody,
+      theme: 'striped',
+      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+    });
+
+    // 3. Aggregate Data by Month
+    const monthsData = {};
+    const sortedSessions = [...sessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+    sortedSessions.forEach(session => {
+      const date = new Date(session.Date);
+      const monthKey = format(date, "MMMM");
+      const monthSort = date.getMonth();
+      if (!monthsData[monthKey]) {
+        monthsData[monthKey] = { name: monthKey, sort: monthSort, sessionCount: 0, totalMinutes: 0, categories: {} };
+      }
+      monthsData[monthKey].sessionCount++;
+      const sessionActivities = planActivities.filter(a => a.TrainingSessionId === session.Id);
+      monthsData[monthKey].totalMinutes += calcRealDuration(sessionActivities);
+      buildCategoryChartData(sessionActivities).forEach(cat => {
+        if (!monthsData[monthKey].categories[cat.name]) monthsData[monthKey].categories[cat.name] = 0;
+        monthsData[monthKey].categories[cat.name] += cat.value;
+      });
+    });
+
+    const sortedMonths = Object.values(monthsData).sort((a, b) => a.sort - b.sort);
+    const masterTableBody = sortedMonths.map(m => [
+      m.name,
+      m.sessionCount,
+      `${m.totalMinutes} min`,
+      Object.entries(m.categories).sort(([, a], [, b]) => b - a).map(([name, mins]) => `${name}: ${mins}min`).join('\n')
+    ]);
+
+    let currentY = doc.lastAutoTable.finalY;
+    if (currentY > 200) {
+      doc.addPage();
+      currentY = 22;
     } else {
-      acc.push({ name: name, value: activity.DurationMinutes });
+      currentY += 10;
     }
-    return acc;
-  }, []);
+
+    doc.setFontSize(16);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Monthly Training Performance", 14, currentY);
+
+    autoTable(doc, {
+      startY: currentY + 7,
+      head: [["Month", "Sessions", "Total Time", "Category Breakdown (Duration)"]],
+      body: masterTableBody,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 4 },
+      columnStyles: { 3: { cellWidth: 'auto', fontSize: 9 } }
+    });
+
+    // 4. Exercise Performance Ranking (FINAL SECTION)
+    const exerciseMinutes = {};
+    planActivities.forEach(a => {
+      const name = a.Exercise?.Name || "Activity";
+      const variation = a.Variation || a.Exercise?.Combinations || "";
+      const fullName = variation ? `${name} (${variation})` : name;
+      if (!exerciseMinutes[fullName]) exerciseMinutes[fullName] = 0;
+      // Use 'DurationMinutes' which is the correct field name in the database
+      exerciseMinutes[fullName] += (a.DurationMinutes || 0);
+    });
+
+    const rankedExercises = Object.entries(exerciseMinutes)
+      .sort(([, a], [, b]) => b - a)
+      .filter(([, mins]) => mins > 0) // Only show exercises with recorded time
+      .map(([name, mins]) => [name, `${mins} min`]);
+
+    let finalY = doc.lastAutoTable.finalY + 10;
+    // If ranking has many items or very little space left, add page
+    if (finalY > 240) {
+      doc.addPage();
+      finalY = 15;
+    }
+
+    doc.setFontSize(18);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Detailed Exercise Performance Ranking", 14, finalY);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("Sorted by total minutes (indicates training volume).", 14, finalY + 5);
+
+    autoTable(doc, {
+      startY: finalY + 10,
+      head: [["Exercise / Activity", "Total Accumulated Time"]],
+      body: rankedExercises,
+      theme: 'striped',
+      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+    });
+
+    doc.save(`Training_Report_${teamName}_${year}.pdf`);
+  };
+
+  // Prepare data for plan overview (unfiltered)
+  const planChartData = buildCategoryChartData(planActivities);
 
   const planTotalSessions = sessions.length;
-  const planTotalDuration = planActivities.reduce(
-    (sum, activity) => sum + (activity.DurationMinutes || 0),
-    0,
-  );
+  const planTotalDuration = calcRealDuration(planActivities);
   const planUniqueDaysCount = new Set(sessions.map((s) => s.Date.split("T")[0]))
     .size;
 
@@ -220,6 +350,14 @@ function Analytics({ session }) {
             </option>
           ))}
         </select>
+
+        <button
+          onClick={generatePDF}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-2 px-4 rounded-lg transition-colors"
+        >
+          <FontAwesomeIcon icon={faFilePdf} />
+          Generate PDF Report
+        </button>
       </div>
 
       {loading && (
@@ -420,13 +558,13 @@ function Analytics({ session }) {
                   <p className="text-3xl font-bold text-[#B2E642]">
                     {planChartData.length > 0
                       ? (
-                          (modalCategoryData.value /
-                            planChartData.reduce(
-                              (sum, item) => sum + item.value,
-                              0,
-                            )) *
-                          100
-                        ).toFixed(1)
+                        (modalCategoryData.value /
+                          planChartData.reduce(
+                            (sum, item) => sum + item.value,
+                            0,
+                          )) *
+                        100
+                      ).toFixed(1)
                       : 0}
                     %
                   </p>
@@ -449,8 +587,8 @@ function Analytics({ session }) {
                 const avgPerSession =
                   categorySessions.length > 0
                     ? (
-                        modalCategoryData.value / categorySessions.length
-                      ).toFixed(1)
+                      modalCategoryData.value / categorySessions.length
+                    ).toFixed(1)
                     : 0;
                 const avgPerDay =
                   uniqueDays > 0
@@ -493,8 +631,13 @@ function Analytics({ session }) {
                     );
                     const exerciseBreakdown = categoryActivities.reduce(
                       (acc, activity) => {
-                        const exerciseName =
-                          activity.Exercise?.Name || "Unknown";
+                        let exerciseName = activity.Exercise?.Name || "Unknown";
+                        if (activity.Variation) {
+                          exerciseName = `${exerciseName} (${activity.Variation})`;
+                        } else if (activity.Exercise?.Combinations) {
+                          exerciseName = `${exerciseName} (${activity.Exercise.Combinations})`;
+                        }
+
                         if (!acc[exerciseName]) {
                           acc[exerciseName] = 0;
                         }
@@ -579,16 +722,16 @@ function Analytics({ session }) {
                     const firstHalfAvg =
                       firstHalf.length > 0
                         ? firstHalf.reduce(
-                            (sum, month) => sum + month.value,
-                            0,
-                          ) / firstHalf.length
+                          (sum, month) => sum + month.value,
+                          0,
+                        ) / firstHalf.length
                         : 0;
                     const secondHalfAvg =
                       secondHalf.length > 0
                         ? secondHalf.reduce(
-                            (sum, month) => sum + month.value,
-                            0,
-                          ) / secondHalf.length
+                          (sum, month) => sum + month.value,
+                          0,
+                        ) / secondHalf.length
                         : 0;
 
                     const trend =
@@ -637,8 +780,8 @@ function Analytics({ session }) {
                 const combinations = Array.from(
                   new Set(
                     categoryActivities
-                      .filter((a) => a.Exercise?.Combinations)
-                      .map((a) => a.Exercise.Combinations),
+                      .filter((a) => a.Variation || a.Exercise?.Combinations)
+                      .map((a) => a.Variation || a.Exercise.Combinations),
                   ),
                 );
 

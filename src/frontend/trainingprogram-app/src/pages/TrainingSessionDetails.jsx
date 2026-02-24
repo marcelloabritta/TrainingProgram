@@ -8,6 +8,7 @@ import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import CreateActivityModal from "../components/modals/CreateActivityModal";
 import ConfirmationModal from "../components/modals/ConfirmationModal";
+import { calcRealDuration } from "../utils/calcRealDuration";
 
 function TrainingSessionDetails() {
   const { setTitle, setShowBackButton } = useHeader();
@@ -52,7 +53,7 @@ function TrainingSessionDetails() {
 
         const { data, error } = await supabase
           .from("TrainingSessions")
-          .select("*, Activities(*, Category:Categories (Name), Exercise:Exercises (Name, Combinations))")
+          .select("*, Activities(*, Category:Categories (Name), Exercise:Exercises (Name, Combinations), CombinedGroupId)")
           .eq("Id", sessionId)
           .single();
 
@@ -83,19 +84,60 @@ function TrainingSessionDetails() {
     return <p className="text-white p-6 text-center">Loading week...</p>;
   if (error) return <p className="text-red-600 p-6 text-center">{error}</p>;
 
-  const totalDuration = trainingSession?.Activities?.reduce(
-    (sum, activity) => sum + activity.DurationMinutes,
-    0
-  );
+  const totalDuration = calcRealDuration(trainingSession?.Activities || []);
 
   const handleCreateActivity = async (newActivityData) => {
     try {
+      let finalActivityData = { ...newActivityData };
+      const combinedWithIds = newActivityData._combinedWithIds || [];
+      const isCombined = newActivityData._isCombined;
+
+      // Remove internal helper fields before sending to Supabase
+      delete finalActivityData._combinedWithIds;
+      delete finalActivityData._isCombined;
+
+      if (isCombined && combinedWithIds.length > 0) {
+        // 1. Find if any peer already has a CombinedGroupId
+        const existingGroupedPeer = trainingSession.Activities.find(
+          (a) => combinedWithIds.includes(a.Id) && a.CombinedGroupId
+        );
+
+        let groupId = existingGroupedPeer?.CombinedGroupId;
+
+        if (!groupId) {
+          // 2. No existing group among peers, create a new one
+          groupId = crypto.randomUUID();
+
+          // 3. Update peers with this new group ID
+          const { error: updatePeersError } = await supabase
+            .from("Activities")
+            .update({ CombinedGroupId: groupId })
+            .in("Id", combinedWithIds);
+
+          if (updatePeersError) throw updatePeersError;
+
+          // 4. Update local state for peers
+          setTrainingSession((current) => ({
+            ...current,
+            Activities: current.Activities.map((a) =>
+              combinedWithIds.includes(a.Id)
+                ? { ...a, CombinedGroupId: groupId }
+                : a
+            ),
+          }));
+        }
+
+        finalActivityData.CombinedGroupId = groupId;
+      }
+
       const { data, error: insertError } = await supabase
         .from("Activities")
-        .insert(newActivityData)
-        .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
+        .insert(finalActivityData)
+        .select("*, Category:Categories (Name), Exercise:Exercises (Name, Combinations), CombinedGroupId")
         .single();
+
       if (insertError) throw insertError;
+
       if (data) {
         setTrainingSession((currentTrainingSession) => ({
           ...currentTrainingSession,
@@ -180,9 +222,25 @@ function TrainingSessionDetails() {
 
         {trainingSession && trainingSession.Activities.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {trainingSession.Activities.map((activity) => (
-              <ActivityList key={activity.Id} activity={activity} onDelete={() => openDeleteModal(activity)} onEdit={() => openEditModal(activity)} />
-            ))}
+            {trainingSession.Activities.map((activity) => {
+              // Build list of peer activities in same combined group
+              const peers = activity.CombinedGroupId
+                ? trainingSession.Activities.filter(
+                  (a) =>
+                    a.CombinedGroupId === activity.CombinedGroupId &&
+                    a.Id !== activity.Id
+                )
+                : [];
+              return (
+                <ActivityList
+                  key={activity.Id}
+                  activity={activity}
+                  combinedWith={peers}
+                  onDelete={() => openDeleteModal(activity)}
+                  onEdit={() => openEditModal(activity)}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="text-center bg-[#1f2937] border-2 border-dashed border-gray-600 text-gray-400 rounded-lg p-8">

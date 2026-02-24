@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { buildCategoryChartData } from "../../utils/calcRealDuration";
 
 const getIconForActivityCategory = (category) => {
   switch (category) {
@@ -36,6 +37,14 @@ function ActivityView({ session, onBack }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => setIsMobile(window.innerWidth < 768);
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
 
   useEffect(() => {
     const fetchActivities = async () => {
@@ -63,16 +72,7 @@ function ActivityView({ session, onBack }) {
   }, [session]);
 
   // Prepare data for PieChart
-  const pieData = activities.reduce((acc, activity) => {
-    const categoryName = activity.Category ? activity.Category.Name : "Unknown";
-    const existing = acc.find((item) => item.name === categoryName);
-    if (existing) {
-      existing.value += activity.DurationMinutes;
-    } else {
-      acc.push({ name: categoryName, value: activity.DurationMinutes });
-    }
-    return acc;
-  }, []);
+  const pieData = buildCategoryChartData(activities);
 
   if (loading)
     return (
@@ -114,45 +114,55 @@ function ActivityView({ session, onBack }) {
       ) : (
         <>
           {/* Chart Section */}
-          <div className="bg-[#1f2937] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-800 h-72 sm:h-80 lg:h-96 w-full flex flex-col items-center justify-center">
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          <div className="bg-[#1f2937] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-800 w-full flex flex-col">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4 text-center">
               Duration by Category
             </h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ percent, value }) =>
-                    percent > 0.05
-                      ? `${(percent * 100).toFixed(0)}% (${value} min)`
-                      : ""
-                  }
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    borderColor: "#374151",
-                    color: "#fff",
-                  }}
-                  itemStyle={{ color: "#fff" }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-64 sm:h-72 lg:h-80 min-h-[256px] w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <PieChart margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={isMobile ? 50 : 60}
+                    outerRadius={isMobile ? 70 : 80}
+                    fill="#8884d8"
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={isMobile ? false : ({ percent, value }) =>
+                      percent > 0.05
+                        ? `${(percent * 100).toFixed(0)}% (${value} min)`
+                        : ""
+                    }
+                    labelLine={!isMobile}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1f2937",
+                      borderColor: "#374151",
+                      color: "#fff",
+                    }}
+                    itemStyle={{ color: "#fff" }}
+                    formatter={(value, name) => [
+                      `${value} min (${pieData.length > 0 ? ((value / pieData.reduce((s, d) => s + d.value, 0)) * 100).toFixed(1) : 0}%)`,
+                      name,
+                    ]}
+                  />
+                  <Legend
+                    wrapperStyle={{ paddingTop: "8px" }}
+                    iconType="circle"
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* List Section */}
@@ -179,9 +189,9 @@ function ActivityView({ session, onBack }) {
                     <h3 className="text-lg font-semibold text-white line-clamp-1">
                       {exerciseName}
                     </h3>
-                    {activity.Exercise?.Combinations && (
+                    {(activity.Variation || activity.Exercise?.Combinations) && (
                       <p className="text-xs text-gray-500 italic mb-1">
-                        {activity.Exercise.Combinations}
+                        {activity.Variation || activity.Exercise.Combinations}
                       </p>
                     )}
                     <p className="text-gray-400 text-sm">
@@ -190,6 +200,13 @@ function ActivityView({ session, onBack }) {
                         {activity.DurationMinutes} min
                       </span>
                     </p>
+                    {activity.CombinedGroupId && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] bg-[#B2E642]/15 text-[#B2E642] rounded px-1.5 py-0.5 font-semibold tracking-wide">
+                          COMBINED
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

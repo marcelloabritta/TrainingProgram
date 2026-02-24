@@ -11,6 +11,7 @@ function CreateActivityModal({
   sessionId,
   activityToEdit,
   onActivityUpdate,
+  existingActivities = [], // for choosing which to combine with
 }) {
   const [exerciseId, setExerciseId] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -18,7 +19,7 @@ function CreateActivityModal({
   const [duration, setDuration] = useState(15);
   const [error, setError] = useState(null);
 
-  // New state for variation
+  // Variation
   const [selectedVariation, setSelectedVariation] = useState("");
   const [availableVariations, setAvailableVariations] = useState([]);
 
@@ -27,6 +28,10 @@ function CreateActivityModal({
 
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingExercises, setLoadingExercises] = useState(false);
+
+  // Combined activity state
+  const [isCombined, setIsCombined] = useState(false);
+  const [combinedWithIds, setCombinedWithIds] = useState([]); // IDs of activities to combine with
 
   const isEditMode = activityToEdit !== null;
 
@@ -61,8 +66,8 @@ function CreateActivityModal({
         setFormat(activityToEdit.Format);
         setCategoryId(activityToEdit.CategoryId || "");
         setDuration(activityToEdit.DurationMinutes);
-        // Note: setting exerciseId and variation happens after exercises load or if we pass it directly
-        // But we rely on category change effect to load exercises.
+        setIsCombined(!!activityToEdit.CombinedGroupId);
+        setCombinedWithIds([]);
       } else {
         setFormat("Drill");
         setCategoryId("");
@@ -70,12 +75,13 @@ function CreateActivityModal({
         setDuration(15);
         setSelectedVariation("");
         setAvailableVariations([]);
+        setIsCombined(false);
+        setCombinedWithIds([]);
       }
     }
   }, [isOpen, activityToEdit, isEditMode]);
 
   useEffect(() => {
-    // Se a categoria for limpa, limpe os exercícios
     if (!categoryId) {
       setExercises([]);
       setExerciseId("");
@@ -87,7 +93,6 @@ function CreateActivityModal({
     const fetchExercises = async () => {
       setLoadingExercises(true);
       setExercises([]);
-      // Don't reset exerciseId immediately if editing, we want to match it
       if (!isEditMode) {
         setExerciseId("");
         setSelectedVariation("");
@@ -101,7 +106,7 @@ function CreateActivityModal({
 
         const { data, error } = await supabase
           .from("Exercises")
-          .select("Id, Name, Combinations, Variations") // Fetch Variations
+          .select("Id, Name, Combinations, Variations")
           .eq("CategoryId", categoryId)
           .or(`UserId.is.null,UserId.eq.${userId}`)
           .order("Name");
@@ -109,23 +114,18 @@ function CreateActivityModal({
         if (error) throw error;
         setExercises(data || []);
 
-        // Re-seleciona o exercício certo no modo de edição
         if (isEditMode && activityToEdit.CategoryId === categoryId) {
           setExerciseId(activityToEdit.ExerciseId);
-          // Set variation if exists
           if (activityToEdit.Variation) {
             setSelectedVariation(activityToEdit.Variation);
           } else {
             setSelectedVariation("");
           }
-
-          // Also set available variations for the selected exercise
           const selectedEx = data.find(ex => ex.Id === activityToEdit.ExerciseId);
           if (selectedEx) {
             if (selectedEx.Variations && Array.isArray(selectedEx.Variations)) {
               setAvailableVariations(selectedEx.Variations);
             } else if (selectedEx.Combinations) {
-              // Fallback for legacy
               setAvailableVariations([selectedEx.Combinations]);
             } else {
               setAvailableVariations([]);
@@ -141,16 +141,14 @@ function CreateActivityModal({
     fetchExercises();
   }, [categoryId, isEditMode, activityToEdit]);
 
-  // When exercise changes, update available variations
   const handleExerciseChange = (newExerciseId) => {
     setExerciseId(newExerciseId);
     const selectedEx = exercises.find(ex => ex.Id === newExerciseId);
-    setSelectedVariation(""); // Reset selection
+    setSelectedVariation("");
 
     if (selectedEx) {
       if (selectedEx.Variations && Array.isArray(selectedEx.Variations) && selectedEx.Variations.length > 0) {
         setAvailableVariations(selectedEx.Variations);
-        // Auto-select first one? Maybe not, force user to choose.
       } else if (selectedEx.Combinations) {
         setAvailableVariations([selectedEx.Combinations]);
       } else {
@@ -159,6 +157,14 @@ function CreateActivityModal({
     } else {
       setAvailableVariations([]);
     }
+  };
+
+  const toggleCombineWith = (activityId) => {
+    setCombinedWithIds((prev) =>
+      prev.includes(activityId)
+        ? prev.filter((id) => id !== activityId)
+        : [...prev, activityId]
+    );
   };
 
   const handleSubmit = (e) => {
@@ -173,10 +179,12 @@ function CreateActivityModal({
       setError("Please select a category and an exercise.");
       return;
     }
-
-    // Validate variation if available
     if (availableVariations.length > 0 && !selectedVariation) {
       setError("Please select a variation for this activity.");
+      return;
+    }
+    if (isCombined && combinedWithIds.length === 0 && !isEditMode) {
+      setError("Select at least one activity to combine with.");
       return;
     }
 
@@ -185,7 +193,10 @@ function CreateActivityModal({
       DurationMinutes: parseInt(duration),
       CategoryId: categoryId,
       ExerciseId: exerciseId,
-      Variation: selectedVariation || null // Add variation to payload
+      Variation: selectedVariation || null,
+      // CombinedGroupId is handled by parent for new activities
+      _combinedWithIds: isCombined ? combinedWithIds : [],
+      _isCombined: isCombined,
     };
 
     if (isEditMode) {
@@ -196,6 +207,11 @@ function CreateActivityModal({
     }
   };
 
+  // Eligible activities to combine with (exclude current edit target)
+  const eligibleToCombine = existingActivities.filter(
+    (a) => !isEditMode || a.Id !== activityToEdit?.Id
+  );
+
   if (!isOpen) return null;
   return (
     <div
@@ -204,7 +220,7 @@ function CreateActivityModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#1f2937] text-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        className="bg-[#1f2937] text-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">
@@ -248,13 +264,11 @@ function CreateActivityModal({
               onChange={(e) => handleExerciseChange(e.target.value)}
               required
               disabled={loadingExercises || !categoryId}
-              className={`w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642] ${!categoryId ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642] ${!categoryId ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <option value="">{loadingExercises ? "Loading..." : "Select an activity"}</option>
               {exercises.map(ex => (
-                <option key={ex.Id} value={ex.Id}>
-                  {ex.Name}
-                </option>
+                <option key={ex.Id} value={ex.Id}>{ex.Name}</option>
               ))}
             </select>
           </div>
@@ -274,9 +288,7 @@ function CreateActivityModal({
               >
                 <option value="">Select a variation</option>
                 {availableVariations.map((v, idx) => (
-                  <option key={idx} value={v}>
-                    {v}
-                  </option>
+                  <option key={idx} value={v}>{v}</option>
                 ))}
               </select>
             </div>
@@ -292,6 +304,68 @@ function CreateActivityModal({
               onChange={(e) => setDuration(e.target.value)}
             />
           </div>
+
+          {/* Combined Activity Toggle */}
+          {!isEditMode && eligibleToCombine.length > 0 && (
+            <div className="bg-[#111827] rounded-lg border border-gray-700 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">🔗 Combined training</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Done simultaneously with another activity
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCombined(!isCombined);
+                    setCombinedWithIds([]);
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isCombined ? "bg-[#B2E642]" : "bg-gray-600"
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCombined ? "translate-x-6" : "translate-x-1"
+                      }`}
+                  />
+                </button>
+              </div>
+
+              {isCombined && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2 font-medium">
+                    Select which activities were done at the same time:
+                  </p>
+                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                    {eligibleToCombine.map((a) => {
+                      const name = a.Exercise?.Name || "Unknown";
+                      const checked = combinedWithIds.includes(a.Id);
+                      return (
+                        <label
+                          key={a.Id}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${checked
+                              ? "bg-[#B2E642]/10 border border-[#B2E642]/40"
+                              : "bg-gray-800 border border-gray-700 hover:border-gray-500"
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleCombineWith(a.Id)}
+                            className="accent-[#B2E642] w-4 h-4"
+                          />
+                          <span className="text-sm text-white">{name}</span>
+                          <span className="text-xs text-gray-400 ml-auto">
+                            {a.DurationMinutes}m
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <FeedbackMessage message={error} />
           <PrimaryButton className="font-bold py-2" type="submit">

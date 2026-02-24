@@ -9,6 +9,7 @@ import {
   Legend,
 } from "recharts";
 import { supabase } from "../../config/supabaseClient";
+import { calcRealDuration, buildCategoryChartData } from "../../utils/calcRealDuration";
 
 const COLORS = ["#B2E642", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6"];
 
@@ -45,7 +46,7 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
 
         const { data, error } = await supabase
           .from("Activities")
-          .select("*, Category:Categories(Name)")
+          .select("*, Category:Categories(Name), Exercise:Exercises(Name, Combinations)")
           .in("TrainingSessionId", sessionIds);
 
         if (error) throw error;
@@ -66,45 +67,30 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
     (a, b) => new Date(a.Date) - new Date(b.Date),
   );
 
-  // Prepare data for Period PieChart
+  // Prepare data for Period PieChart (exclude sessions without a Period)
   const periodData = sessions.reduce((acc, session) => {
-    const period = session.Period || "Unknown";
-    const existing = acc.find((item) => item.name === period);
+    if (!session.Period) return acc; // skip sessions with no period set
+    const existing = acc.find((item) => item.name === session.Period);
     if (existing) {
       existing.value++;
     } else {
-      acc.push({ name: period, value: 1 });
+      acc.push({ name: session.Period, value: 1 });
     }
     return acc;
   }, []);
 
   // Prepare data for Category PieChart (from activities)
-  const categoryData = activities.reduce((acc, activity) => {
-    const categoryName = activity.Category ? activity.Category.Name : "Unknown";
-    const existing = acc.find((item) => item.name === categoryName);
-    if (existing) {
-      existing.value += activity.DurationMinutes;
-    } else {
-      acc.push({ name: categoryName, value: activity.DurationMinutes });
-    }
-    return acc;
-  }, []);
+  const categoryData = buildCategoryChartData(activities);
 
   // Calculate total duration
-  const totalDuration = activities.reduce(
-    (sum, activity) => sum + (activity.DurationMinutes || 0),
-    0,
-  );
+  const totalDuration = calcRealDuration(activities);
 
   // Filter data for selected category
   const categoryActivities = activities;
 
   const categorySessions = sessions;
 
-  const categoryTotalDuration = categoryActivities.reduce(
-    (sum, activity) => sum + (activity.DurationMinutes || 0),
-    0,
-  );
+  const categoryTotalDuration = calcRealDuration(categoryActivities);
 
   // Prepare data for Category PieChart (filtered or all)
   const displayCategoryData = categoryData;
@@ -112,6 +98,11 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [dayModalSessions, setDayModalSessions] = useState([]);
   const [selectedDayDate, setSelectedDayDate] = useState(null);
+
+  // Category click state
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryModalName, setCategoryModalName] = useState("");
+  const [categoryModalSessions, setCategoryModalSessions] = useState([]);
 
   const handleDayClick = (date, daySessions) => {
     if (daySessions.length === 1) {
@@ -133,6 +124,25 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
     setDayModalOpen(false);
     setDayModalSessions([]);
     setSelectedDayDate(null);
+  };
+
+  const handleCategoryClick = (data) => {
+    if (!data || !data.name) return;
+    // Find sessions that have at least one activity in this category
+    const sessionsWithCategory = sessions.filter((s) =>
+      activities.some(
+        (a) => a.TrainingSessionId === s.Id && a.Category?.Name === data.name
+      )
+    );
+    setCategoryModalName(data.name);
+    setCategoryModalSessions(sessionsWithCategory);
+    setCategoryModalOpen(true);
+  };
+
+  const closeCategoryModal = () => {
+    setCategoryModalOpen(false);
+    setCategoryModalName("");
+    setCategoryModalSessions([]);
   };
 
   return (
@@ -215,14 +225,14 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
               </div>
 
               {/* PieChart */}
-              <div className="h-72 sm:h-80 lg:h-96 min-h-[288px] sm:min-h-[320px] lg:min-h-[384px]">
+              <div className="h-80 sm:h-80 lg:h-96 min-h-[320px] sm:min-h-[320px] lg:min-h-[384px] overflow-visible">
                 <ResponsiveContainer
                   width="100%"
                   height="100%"
-                  minWidth={300}
-                  minHeight={288}
+                  minWidth={0}
+                  minHeight={320}
                 >
-                  <PieChart>
+                  <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                     <Pie
                       data={categoryData}
                       cx="50%"
@@ -232,13 +242,14 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                       fill="#8884d8"
                       paddingAngle={5}
                       dataKey="value"
+                      onClick={handleCategoryClick}
                       label={({ percent, value }) =>
                         !isMobile && percent > 0.05
                           ? `${(percent * 100).toFixed(0)}% (${value} min)`
                           : ""
                       }
                       labelLine={false}
-                      style={{ fontSize: "14px", fontWeight: "bold" }}
+                      style={{ fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}
                     >
                       {categoryData.map((entry, index) => (
                         <Cell
@@ -265,6 +276,9 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+              <p className="text-center text-gray-400 text-sm mt-2">
+                Click on a segment to view sessions by category
+              </p>
             </div>
           </div>
 
@@ -395,6 +409,89 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
             </div>
           </div>
         </>
+      )}
+
+      {/* Category Sessions Modal */}
+      {categoryModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={closeCategoryModal}
+        >
+          <div
+            className="bg-[#1f2937] rounded-xl border border-gray-700 max-w-md w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white">
+                  {categoryModalName}
+                </h2>
+                <button
+                  onClick={closeCategoryModal}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {categoryModalSessions.length === 0 ? (
+                  <p className="text-gray-400 text-center">No sessions found.</p>
+                ) : (
+                  categoryModalSessions
+                    .slice()
+                    .sort((a, b) => new Date(a.Date) - new Date(b.Date))
+                    .map((session) => {
+                      const sessionActivities = activities.filter(
+                        (a) => a.TrainingSessionId === session.Id && a.Category?.Name === categoryModalName
+                      );
+                      const totalMins = sessionActivities.reduce((sum, a) => sum + (a.DurationMinutes || 0), 0);
+                      const dateLabel = new Date(session.Date).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      });
+                      return (
+                        <div
+                          key={session.Id}
+                          onClick={() => {
+                            closeCategoryModal();
+                            onWorkoutClick(session);
+                          }}
+                          className="bg-[#111827] p-4 rounded-lg border border-gray-700 hover:border-[#B2E642] cursor-pointer transition-all group"
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex flex-col w-full">
+                              <span className="text-[#B2E642] font-semibold text-lg">
+                                {dateLabel} - {session.Period || "No Period"}
+                              </span>
+                              <div className="mt-2 space-y-1">
+                                {sessionActivities.slice(0, 3).map((a) => (
+                                  <div key={a.Id} className="text-gray-300 text-sm flex justify-between">
+                                    <span>{a.Exercise?.Name || "Unknown Activity"}</span>
+                                    <span className="text-gray-500 text-xs">{a.DurationMinutes}m</span>
+                                  </div>
+                                ))}
+                                {sessionActivities.length > 3 && (
+                                  <div className="text-gray-500 text-xs italic">...and more</div>
+                                )}
+                              </div>
+                              <div className="flex justify-between items-center mt-2">
+                                <span className="text-gray-500 text-xs">{totalMins} min total</span>
+                                <span className="text-gray-500 text-xs">Tap to view details →</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Day Details Modal */}
