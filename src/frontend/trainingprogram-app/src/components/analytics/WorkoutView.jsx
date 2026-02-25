@@ -11,7 +11,20 @@ import {
 import { supabase } from "../../config/supabaseClient";
 import { calcRealDuration, buildCategoryChartData } from "../../utils/calcRealDuration";
 
-const COLORS = ["#B2E642", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6"];
+const COLORS = [
+  "#B2E642", // Lime
+  "#3b82f6", // Blue
+  "#ef4444", // Red
+  "#f59e0b", // Amber
+  "#8b5cf6", // Violet
+  "#ec4899", // Pink
+  "#10b981", // Emerald
+  "#6366f1", // Indigo
+  "#f97316", // Orange
+  "#06b6d4", // Cyan
+  "#a855f7", // Purple
+  "#84cc16"  // Grass
+];
 
 function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -67,9 +80,14 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
     (a, b) => new Date(a.Date) - new Date(b.Date),
   );
 
-  // Prepare data for Period PieChart (exclude sessions without a Period)
+  // Prepare data for Period PieChart (exclude sessions without a Period or with no activities)
   const periodData = sessions.reduce((acc, session) => {
     if (!session.Period) return acc; // skip sessions with no period set
+
+    // Check if this session has any activities
+    const hasActivities = activities.some(a => a.TrainingSessionId === session.Id);
+    if (!hasActivities) return acc;
+
     const existing = acc.find((item) => item.name === session.Period);
     if (existing) {
       existing.value++;
@@ -285,69 +303,83 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
           {/* Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Calendar Timeline */}
-            <div className="bg-[#111827] p-4 rounded-xl border border-gray-800">
-              <h3 className="text-lg font-semibold text-white mb-4 text-center">
+            <div className="bg-[#111827] p-4 sm:p-6 rounded-xl border border-gray-800 shadow-inner">
+              <h3 className="text-lg font-bold text-white mb-6 text-center uppercase tracking-widest text-[#B2E642]">
                 Training Days
               </h3>
+
+              {/* Weekday Headers */}
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                  <div key={i} className="text-center text-[10px] font-bold text-gray-500 uppercase">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
               <div className="grid grid-cols-7 gap-2">
-                {Array.from(
-                  {
-                    length: new Date(
-                      monthDate.getFullYear(),
-                      monthDate.getMonth() + 1,
-                      0,
-                    ).getDate(),
-                  },
-                  (_, i) => {
-                    const day = i + 1;
+                {(() => {
+                  const year = monthDate.getFullYear();
+                  const month = monthDate.getMonth();
+                  const firstDay = new Date(year, month, 1);
+                  const lastDay = new Date(year, month + 1, 0);
+                  const daysInMonth = lastDay.getDate();
+
+                  // Calculate offset for Monday-start (getDay() returns 0 for Sunday)
+                  let startOffset = firstDay.getDay() - 1;
+                  if (startOffset === -1) startOffset = 6; // Sunday becomes 6
+
+                  const dayCells = [];
+
+                  // Empty cells for offset
+                  for (let i = 0; i < startOffset; i++) {
+                    dayCells.push(<div key={`offset-${i}`} className="aspect-square" />);
+                  }
+
+                  // Actual days
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const dayDate = new Date(year, month, day);
                     const daySessions = sortedSessions.filter(
                       (s) => new Date(s.Date).getDate() === day,
                     );
-                    const hasWorkout = daySessions.length > 0;
 
-                    return (
+                    const daySessionsWithActivities = daySessions.filter(s =>
+                      activities.some(a => a.TrainingSessionId === s.Id)
+                    );
+
+                    const hasWorkout = daySessionsWithActivities.length > 0;
+
+                    dayCells.push(
                       <div
                         key={day}
                         onClick={() =>
                           hasWorkout &&
-                          handleDayClick(
-                            new Date(
-                              monthDate.getFullYear(),
-                              monthDate.getMonth(),
-                              day,
-                            ),
-                            daySessions,
-                          )
+                          handleDayClick(dayDate, daySessionsWithActivities)
                         }
                         className={`
-                        aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium
-                        transition-all duration-200
+                        aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-all duration-300 border
                         ${hasWorkout
-                            ? "bg-[#B2E642] text-gray-900 cursor-pointer hover:scale-110 hover:shadow-lg"
-                            : "bg-gray-800 text-gray-500"
+                            ? "bg-gradient-to-br from-[#B2E642] to-[#91c035] text-gray-900 cursor-pointer border-[#B2E642] hover:scale-110 hover:shadow-[0_0_15px_rgba(178,230,66,0.3)] font-bold"
+                            : "bg-gray-800/50 text-gray-500 border-gray-700/50"
                           }
                       `}
                       >
-                        <span className="text-xs">{day}</span>
+                        <span className={`${hasWorkout ? "text-sm" : "text-xs"} font-mono`}>{day}</span>
                         {hasWorkout && (
-                          <div className="flex gap-0.5 mt-0.5">
-                            {daySessions.slice(0, 3).map((_, idx) => (
-                              <span key={idx} className="text-[8px]">
-                                ●
-                              </span>
+                          <div className="flex gap-0.5 mt-1">
+                            {daySessionsWithActivities.slice(0, 3).map((_, idx) => (
+                              <div key={idx} className="w-1.5 h-1.5 rounded-full bg-gray-900 border border-gray-900/20" />
                             ))}
-                            {daySessions.length > 3 && (
-                              <span className="text-[8px]">+</span>
-                            )}
                           </div>
                         )}
                       </div>
                     );
-                  },
-                )}
+                  }
+                  return dayCells;
+                })()}
               </div>
-              <p className="text-center text-gray-500 text-xs mt-4">
-                Click on a day to view details
+              <p className="text-center text-gray-500 text-[10px] mt-6 italic opacity-70">
+                Days highlighted in green indicate completed sessions. Tap a day to view details.
               </p>
             </div>
 

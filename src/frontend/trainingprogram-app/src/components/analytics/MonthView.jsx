@@ -55,7 +55,7 @@ function MonthView({ sessions, onMonthClick }) {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <h2 className="text-2xl font-bold text-white mb-2">Monthly Overview</h2>
+      <h2 className="text-lg sm:text-2xl font-bold text-white mb-2 ml-1">Monthly Overview</h2>
 
       {monthCards.length === 0 ? (
         <div className="text-center text-gray-400 p-10 bg-[#1f2937] rounded-xl border border-dashed border-gray-600">

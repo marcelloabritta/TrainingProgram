@@ -176,10 +176,15 @@ function TrainingSessionDetails() {
 
   const handleUpdateActivity = async (activityId, updatedData) => {
     try {
+      // Create a copy and remove internal helper fields before sending to Supabase
+      const finalData = { ...updatedData };
+      delete finalData._combinedWithIds;
+      delete finalData._isCombined;
+
       // 1. Fale com o Supabase para ATUALIZAR
       const { data, error } = await supabase
         .from('Activities')
-        .update(updatedData)
+        .update(finalData)
         .eq('Id', activityId) // Onde o ID bate
         .select('*, Category:Categories (Name), Exercise:Exercises (Name)')
         .single();

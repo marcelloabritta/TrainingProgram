@@ -13,11 +13,11 @@ import {
   Legend,
 } from "recharts";
 import { calcRealDuration, buildCategoryChartData } from "../utils/calcRealDuration";
-import { format } from "date-fns";
+import { format, addWeeks, subDays } from "date-fns";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilePdf, faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
+import { faFilePdf, faChevronLeft, faChevronRight, faCalendarAlt, faFilter, faTimes } from "@fortawesome/free-solid-svg-icons";
 
 const VIEW_MODES = {
   MONTHS: "MONTHS",
@@ -25,7 +25,20 @@ const VIEW_MODES = {
   ACTIVITIES: "ACTIVITIES",
 };
 
-const COLORS = ["#B2E642", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6"];
+const COLORS = [
+  "#B2E642", // Lime
+  "#3b82f6", // Blue
+  "#ef4444", // Red
+  "#f59e0b", // Amber
+  "#8b5cf6", // Violet
+  "#ec4899", // Pink
+  "#10b981", // Emerald
+  "#6366f1", // Indigo
+  "#f97316", // Orange
+  "#06b6d4", // Cyan
+  "#a855f7", // Purple
+  "#84cc16"  // Grass
+];
 
 function Analytics({ session }) {
   const { setTitle } = useHeader();
@@ -43,6 +56,11 @@ function Analytics({ session }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
+
+  // Period Filter State
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -71,15 +89,51 @@ function Analytics({ session }) {
       try {
         const { data, error } = await supabase
           .from("Macrocycles")
-          .select("Id, TeamName, Year")
+          .select("*, Microcycles(*)")
           .eq("UserId", user.id)
           .order("Year", { ascending: false });
 
         if (error) throw error;
-        setPlans(data);
 
-        if (data.length > 0) {
-          setSelectedPlanId(data[0].Id);
+        // Process plans to get full range
+        const processedPlans = data.map(plan => {
+          // Primary: Microcycle dates — always set when a plan is created
+          const microDates = plan.Microcycles?.flatMap(m => [
+            m.StartDate && new Date(m.StartDate + "T00:00:00"),
+            m.EndDate && new Date(m.EndDate + "T23:59:59")
+          ]).filter(d => d instanceof Date && !isNaN(d)) || [];
+
+          // Secondary: StartDate + Duration from the Macrocycle record
+          let calcStart = plan.StartDate ? new Date(plan.StartDate + "T00:00:00") : null;
+          let calcEnd = null;
+          if (calcStart && plan.Duration) {
+            calcEnd = subDays(addWeeks(calcStart, plan.Duration), 1);
+          }
+
+          // Priority: Microcycles → StartDate+Duration → Year fallback
+          const finalStart = microDates.length > 0
+            ? new Date(Math.min(...microDates))
+            : (calcStart || new Date(plan.Year, 0, 1));
+
+          const finalEnd = microDates.length > 0
+            ? new Date(Math.max(...microDates))
+            : (calcEnd || new Date(plan.Year, 11, 31));
+
+          return {
+            ...plan,
+            FullStartDate: format(finalStart, "yyyy-MM-dd"),
+            FullEndDate: format(finalEnd, "yyyy-MM-dd")
+          };
+        });
+
+        setPlans(processedPlans);
+
+        if (processedPlans.length > 0) {
+          const defaultPlan = processedPlans[0];
+          setSelectedPlanId(defaultPlan.Id);
+          // Set initial range to full plan
+          setStartDate(defaultPlan.FullStartDate);
+          setEndDate(defaultPlan.FullEndDate);
         }
       } catch (err) {
         console.error("Error fetching plans:", err);
@@ -134,6 +188,63 @@ function Analytics({ session }) {
     fetchData();
   }, [selectedPlanId]);
 
+  // Period Filtering Logic
+  const filteredSessions = sessions.filter((s) => {
+    if (!startDate && !endDate) return true;
+    const sessionDate = new Date(s.Date + "T00:00:00"); // Ensure local date
+    if (startDate && sessionDate < new Date(startDate + "T00:00:00")) return false;
+    if (endDate && sessionDate > new Date(endDate + "T23:59:59")) return false;
+    return true;
+  });
+
+  const filteredActivities = planActivities.filter((a) =>
+    filteredSessions.some((s) => s.Id === a.TrainingSessionId)
+  );
+
+  // Quick Filters
+  const setLast30Days = () => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - 29);
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setEndDate(format(now, "yyyy-MM-dd"));
+  };
+
+  const setLast90Days = () => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - 89);
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setEndDate(format(now, "yyyy-MM-dd"));
+  };
+
+  // Helper to check active filter states
+  const now = new Date();
+  const last30Start = format(new Date(new Date().setDate(new Date().getDate() - 29)), "yyyy-MM-dd");
+  const last30End = format(now, "yyyy-MM-dd");
+  const last90Start = format(new Date(new Date().setDate(new Date().getDate() - 89)), "yyyy-MM-dd");
+  const last90End = format(now, "yyyy-MM-dd");
+
+  const currentPlan = plans.find(p => p.Id === selectedPlanId);
+  const isLast30Active = startDate === last30Start && endDate === last30End;
+  const isLast90Active = startDate === last90Start && endDate === last90End;
+  const isFullPlanActive = currentPlan && startDate === currentPlan.FullStartDate && endDate === currentPlan.FullEndDate;
+
+  const clearFilter = () => {
+    const currentPlan = plans.find(p => p.Id === selectedPlanId);
+    if (currentPlan && currentPlan.FullStartDate && currentPlan.FullEndDate) {
+      setStartDate(currentPlan.FullStartDate);
+      setEndDate(currentPlan.FullEndDate);
+    } else if (currentPlan) {
+      // Fallback if dates are missing in plan object
+      setStartDate(currentPlan.FullStartDate || "");
+      setEndDate(currentPlan.FullEndDate || "");
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
   const handleMonthClick = (monthDate, monthSessions) => {
     setSelectedMonthDate(monthDate);
     setSelectedMonthSessions(monthSessions);
@@ -157,7 +268,16 @@ function Analytics({ session }) {
   };
 
   const handlePlanChange = (e) => {
-    setSelectedPlanId(e.target.value);
+    const newPlanId = e.target.value;
+    setSelectedPlanId(newPlanId);
+
+    // Also update dates to full plan range of the new plan
+    const newPlan = plans.find(p => p.Id === newPlanId);
+    if (newPlan) {
+      if (newPlan.FullStartDate) setStartDate(newPlan.FullStartDate);
+      if (newPlan.FullEndDate) setEndDate(newPlan.FullEndDate);
+    }
+
     setViewMode(VIEW_MODES.MONTHS);
     setSelectedMonthDate(null);
     setSelectedMonthSessions([]);
@@ -176,148 +296,171 @@ function Analytics({ session }) {
   };
 
   const generatePDF = () => {
-    const doc = new jsPDF();
-    const currentPlan = plans.find((p) => p.Id === selectedPlanId);
-    const teamName = currentPlan?.TeamName || "Unknown Team";
-    const year = currentPlan?.Year || "Unknown Year";
-    const timestamp = format(new Date(), "dd/MM/yyyy HH:mm");
+    try {
+      const doc = new jsPDF();
+      const currentPlan = plans.find((p) => p.Id === selectedPlanId);
+      const teamName = currentPlan?.TeamName || "Unknown Team";
+      const year = currentPlan?.Year || "Unknown Year";
+      const timestamp = format(new Date(), "dd/MM/yyyy HH:mm");
 
-    // Header
-    doc.setFontSize(24);
-    doc.setTextColor(0);
-    doc.text("TRAINING PROGRAM REPORT", 14, 22);
-
-    doc.setFontSize(12);
-    doc.setTextColor(100);
-    doc.text(`Team: ${teamName}`, 14, 30);
-    doc.text(`Macrocycle: ${year}`, 14, 36);
-    doc.text(`Generated: ${timestamp}`, 14, 42);
-
-    // 1. Overall Summary
-    autoTable(doc, {
-      startY: 50,
-      head: [["Macrocycle Total Sessions", "Macrocycle Total Days", "Macrocycle Total Minutes"]],
-      body: [[planTotalSessions, planUniqueDaysCount, `${planTotalDuration} min`]],
-      theme: 'grid',
-      headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
-    });
-
-    // 2. Macrocycle Category Distribution
-    doc.setFontSize(18);
-    doc.setTextColor(31, 41, 55);
-    doc.text("Macrocycle Category Distribution", 14, doc.lastAutoTable.finalY + 15);
-
-    const catSummaryBody = planChartData.map(cat => [
-      cat.name,
-      `${cat.value} min`,
-      planTotalDuration > 0 ? `${((cat.value / planTotalDuration) * 100).toFixed(1)}%` : "0%"
-    ]);
-
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 22,
-      head: [["Category", "Total Duration", "Percentage"]],
-      body: catSummaryBody,
-      theme: 'striped',
-      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
-    });
-
-    // 3. Aggregate Data by Month
-    const monthsData = {};
-    const sortedSessions = [...sessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
-
-    sortedSessions.forEach(session => {
-      const date = new Date(session.Date);
-      const monthKey = format(date, "MMMM");
-      const monthSort = date.getMonth();
-      if (!monthsData[monthKey]) {
-        monthsData[monthKey] = { name: monthKey, sort: monthSort, sessionCount: 0, totalMinutes: 0, categories: {} };
+      // Filtered range text
+      let periodText = "Full Macrocycle";
+      if (startDate || endDate) {
+        try {
+          const startStr = startDate ? format(new Date(startDate + "T00:00:00"), "dd/MM/yyyy") : "...";
+          const endStr = endDate ? format(new Date(endDate + "T00:00:00"), "dd/MM/yyyy") : "...";
+          periodText = `${startStr} - ${endStr}`;
+        } catch (e) {
+          console.error("Error formatting dates for PDF:", e);
+        }
       }
-      monthsData[monthKey].sessionCount++;
-      const sessionActivities = planActivities.filter(a => a.TrainingSessionId === session.Id);
-      monthsData[monthKey].totalMinutes += calcRealDuration(sessionActivities);
-      buildCategoryChartData(sessionActivities).forEach(cat => {
-        if (!monthsData[monthKey].categories[cat.name]) monthsData[monthKey].categories[cat.name] = 0;
-        monthsData[monthKey].categories[cat.name] += cat.value;
+
+      // Header
+      doc.setFontSize(24);
+      doc.setTextColor(31, 41, 55);
+      doc.text("TRAINING PROGRAM REPORT", 14, 22);
+
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(`Team: ${teamName}`, 14, 30);
+      doc.text(`Macrocycle: ${year}`, 14, 36);
+      doc.setTextColor(178, 230, 66); // Use a visible theme color (greenish)
+      doc.setFont(undefined, 'bold');
+      doc.text(`Period: ${periodText}`, 14, 42);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(100);
+      doc.text(`Generated: ${timestamp}`, 14, 48);
+
+      // 1. Overall Summary
+      autoTable(doc, {
+        startY: 55,
+        head: [["Period Total Sessions", "Period Total Days", "Period Total Minutes"]],
+        body: [[planTotalSessions, planUniqueDaysCount, `${planTotalDuration} min`]],
+        theme: 'grid',
+        headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
       });
-    });
 
-    const sortedMonths = Object.values(monthsData).sort((a, b) => a.sort - b.sort);
-    const masterTableBody = sortedMonths.map(m => [
-      m.name,
-      m.sessionCount,
-      `${m.totalMinutes} min`,
-      Object.entries(m.categories).sort(([, a], [, b]) => b - a).map(([name, mins]) => `${name}: ${mins}min`).join('\n')
-    ]);
+      // 2. Category Distribution
+      doc.setFontSize(18);
+      doc.setTextColor(31, 41, 55);
+      doc.text("Category Distribution", 14, doc.lastAutoTable.finalY + 15);
 
-    let currentY = doc.lastAutoTable.finalY;
-    if (currentY > 200) {
-      doc.addPage();
-      currentY = 22;
-    } else {
-      currentY += 10;
+      const catSummaryBody = planChartData.map(cat => [
+        cat.name,
+        `${cat.value} min`,
+        planTotalDuration > 0 ? `${((cat.value / planTotalDuration) * 100).toFixed(1)}%` : "0%"
+      ]);
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 22,
+        head: [["Category", "Total Duration", "Percentage"]],
+        body: catSummaryBody,
+        theme: 'striped',
+        headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+      });
+
+      // 3. Aggregate Data by Month
+      const monthsData = {};
+      const sortedFilteredSessions = [...filteredSessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+      sortedFilteredSessions.forEach(session => {
+        if (!session.Date) return;
+        const date = new Date(session.Date + "T00:00:00");
+        if (isNaN(date.getTime())) return;
+
+        const monthKey = format(date, "MMMM yyyy");
+        const monthSort = date.getFullYear() * 12 + date.getMonth();
+        if (!monthsData[monthKey]) {
+          monthsData[monthKey] = { name: monthKey, sort: monthSort, sessionCount: 0, totalMinutes: 0, categories: {} };
+        }
+        monthsData[monthKey].sessionCount++;
+        const sessionActivities = filteredActivities.filter(a => a.TrainingSessionId === session.Id);
+        monthsData[monthKey].totalMinutes += calcRealDuration(sessionActivities);
+        buildCategoryChartData(sessionActivities).forEach(cat => {
+          if (!monthsData[monthKey].categories[cat.name]) monthsData[monthKey].categories[cat.name] = 0;
+          monthsData[monthKey].categories[cat.name] += cat.value;
+        });
+      });
+
+      const sortedMonths = Object.values(monthsData).sort((a, b) => a.sort - b.sort);
+      const masterTableBody = sortedMonths.map(m => [
+        m.name,
+        m.sessionCount,
+        `${m.totalMinutes} min`,
+        Object.entries(m.categories).sort(([, a], [, b]) => b - a).map(([name, mins]) => `${name}: ${mins}min`).join('\n')
+      ]);
+
+      let currentY = doc.lastAutoTable.finalY;
+      if (currentY > 200) {
+        doc.addPage();
+        currentY = 22;
+      } else {
+        currentY += 10;
+      }
+
+      doc.setFontSize(16);
+      doc.setTextColor(31, 41, 55);
+      doc.text("Training Performance by Month", 14, currentY);
+
+      autoTable(doc, {
+        startY: currentY + 7,
+        head: [["Month", "Sessions", "Total Time", "Category Breakdown (Duration)"]],
+        body: masterTableBody,
+        theme: 'grid',
+        headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 4 },
+        columnStyles: { 3: { cellWidth: 'auto', fontSize: 9 } }
+      });
+
+      // 4. Exercise Performance Ranking
+      const exerciseMinutes = {};
+      filteredActivities.forEach(a => {
+        const name = a.Exercise?.Name || "Activity";
+        const variation = a.Variation || a.Exercise?.Combinations || "";
+        const fullName = variation ? `${name} (${variation})` : name;
+        if (!exerciseMinutes[fullName]) exerciseMinutes[fullName] = 0;
+        exerciseMinutes[fullName] += (a.DurationMinutes || 0);
+      });
+
+      const rankedExercises = Object.entries(exerciseMinutes)
+        .sort(([, a], [, b]) => b - a)
+        .filter(([, mins]) => mins > 0)
+        .map(([name, mins]) => [name, `${mins} min`]);
+
+      let finalY = doc.lastAutoTable.finalY + 10;
+      if (finalY > 240) {
+        doc.addPage();
+        finalY = 15;
+      }
+
+      doc.setFontSize(18);
+      doc.setTextColor(31, 41, 55);
+      doc.text("Exercise Volume Ranking", 14, finalY);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text("Total minutes per exercise within selected period.", 14, finalY + 5);
+
+      autoTable(doc, {
+        startY: finalY + 10,
+        head: [["Exercise / Activity", "Total Accumulated Time"]],
+        body: rankedExercises,
+        theme: 'striped',
+        headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+      });
+
+      doc.save(`Training_Report_${teamName}_${periodText.replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Check console for details.");
     }
-
-    doc.setFontSize(16);
-    doc.setTextColor(31, 41, 55);
-    doc.text("Monthly Training Performance", 14, currentY);
-
-    autoTable(doc, {
-      startY: currentY + 7,
-      head: [["Month", "Sessions", "Total Time", "Category Breakdown (Duration)"]],
-      body: masterTableBody,
-      theme: 'grid',
-      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 4 },
-      columnStyles: { 3: { cellWidth: 'auto', fontSize: 9 } }
-    });
-
-    // 4. Exercise Performance Ranking (FINAL SECTION)
-    const exerciseMinutes = {};
-    planActivities.forEach(a => {
-      const name = a.Exercise?.Name || "Activity";
-      const variation = a.Variation || a.Exercise?.Combinations || "";
-      const fullName = variation ? `${name} (${variation})` : name;
-      if (!exerciseMinutes[fullName]) exerciseMinutes[fullName] = 0;
-      // Use 'DurationMinutes' which is the correct field name in the database
-      exerciseMinutes[fullName] += (a.DurationMinutes || 0);
-    });
-
-    const rankedExercises = Object.entries(exerciseMinutes)
-      .sort(([, a], [, b]) => b - a)
-      .filter(([, mins]) => mins > 0) // Only show exercises with recorded time
-      .map(([name, mins]) => [name, `${mins} min`]);
-
-    let finalY = doc.lastAutoTable.finalY + 10;
-    // If ranking has many items or very little space left, add page
-    if (finalY > 240) {
-      doc.addPage();
-      finalY = 15;
-    }
-
-    doc.setFontSize(18);
-    doc.setTextColor(31, 41, 55);
-    doc.text("Detailed Exercise Performance Ranking", 14, finalY);
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text("Sorted by total minutes (indicates training volume).", 14, finalY + 5);
-
-    autoTable(doc, {
-      startY: finalY + 10,
-      head: [["Exercise / Activity", "Total Accumulated Time"]],
-      body: rankedExercises,
-      theme: 'striped',
-      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
-    });
-
-    doc.save(`Training_Report_${teamName}_${year}.pdf`);
   };
 
-  // Prepare data for plan overview (unfiltered)
-  const planChartData = buildCategoryChartData(planActivities);
+  // Prepare data for plan overview (filtered)
+  const planChartData = buildCategoryChartData(filteredActivities);
 
-  const planTotalSessions = sessions.length;
-  const planTotalDuration = calcRealDuration(planActivities);
-  const planUniqueDaysCount = new Set(sessions.map((s) => s.Date.split("T")[0]))
+  const planTotalSessions = filteredSessions.length;
+  const planTotalDuration = calcRealDuration(filteredActivities);
+  const planUniqueDaysCount = new Set(filteredSessions.map((s) => s.Date.split("T")[0]))
     .size;
 
   if (
@@ -336,28 +479,239 @@ function Analytics({ session }) {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 pb-20 flex flex-col gap-4 sm:gap-6">
-      {/* Plan Selector */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-[#1f2937] p-4 rounded-xl border border-gray-700">
-        <label className="text-white font-semibold text-sm">Plan:</label>
-        <select
-          value={selectedPlanId || ""}
-          onChange={handlePlanChange}
-          className="w-full sm:flex-1 sm:min-w-[300px] bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#B2E642] focus:border-transparent outline-none"
-        >
-          {plans.map((plan) => (
-            <option key={plan.Id} value={plan.Id}>
-              {plan.TeamName} ({plan.Year})
-            </option>
-          ))}
-        </select>
+      {/* Plan Selector & Header */}
+      <div className="flex flex-col gap-4 bg-[#1f2937] p-4 sm:p-5 rounded-xl border border-gray-700 shadow-lg">
+        <div className="md:flex md:items-end justify-between gap-4">
+          <div className="flex flex-col flex-1 gap-1.5 mb-4 md:mb-0">
+            <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">Plan:</label>
+            <select
+              value={selectedPlanId || ""}
+              onChange={handlePlanChange}
+              className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg px-4 py-3 text-base font-bold focus:ring-2 focus:ring-[#B2E642] focus:border-transparent outline-none transition-all lg:text-lg"
+            >
+              {plans.map((plan) => (
+                <option key={plan.Id} value={plan.Id}>
+                  {plan.TeamName} ({plan.Year})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button
-          onClick={generatePDF}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-2 px-4 rounded-lg transition-colors"
-        >
-          <FontAwesomeIcon icon={faFilePdf} />
-          Generate PDF Report
-        </button>
+          <div className="flex items-center gap-2 h-full min-h-[50px]">
+            {/* Desktop-only PDF button next to Select */}
+            <button
+              onClick={generatePDF}
+              className="hidden sm:flex flex-1 sm:flex-none items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold h-[50px] px-8 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-[#B2E642]/10"
+              title="Generate PDF Report"
+            >
+              <FontAwesomeIcon icon={faFilePdf} />
+              <span className="text-base">Export PDF</span>
+            </button>
+
+            {/* Filter Toggle Button (Mobile Only) */}
+            <button
+              onClick={() => setShowFiltersMobile(!showFiltersMobile)}
+              className={`sm:hidden flex-1 flex items-center justify-center gap-2 h-[50px] px-5 rounded-lg transition-all border ${showFiltersMobile
+                ? "bg-[#B2E642] text-black border-[#B2E642]"
+                : (startDate || endDate) && !isFullPlanActive
+                  ? "bg-gray-800 text-[#B2E642] border-[#B2E642]"
+                  : "bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-500"
+                }`}
+            >
+              <FontAwesomeIcon icon={showFiltersMobile ? faTimes : faFilter} className={showFiltersMobile ? "text-black" : "text-[#B2E642]"} />
+              <span className="text-base font-bold uppercase tracking-wider">Filters</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Section (Sheet on mobile, Grid on desktop) */}
+        {!isMobile ? (
+          <div className="pt-5 border-t border-gray-700/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
+              {/* Start Date */}
+              <div className="flex flex-col gap-2 group">
+                <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">Start Date:</label>
+                <div
+                  onClick={() => {
+                    try { document.getElementById('start-date-input').showPicker(); }
+                    catch (e) { document.getElementById('start-date-input').focus(); }
+                  }}
+                  className="relative flex items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 cursor-pointer hover:border-[#B2E642]/50 transition-all group-focus-within:border-[#B2E642] group-focus-within:ring-2 group-focus-within:ring-[#B2E642]/20"
+                >
+                  <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] mr-3 text-base opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-white text-base font-medium">
+                    {startDate ? format(new Date(startDate + "T00:00:00"), "dd MMM yyyy") : "Select date"}
+                  </span>
+                  <input
+                    id="start-date-input"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                  />
+                </div>
+              </div>
+
+              {/* End Date */}
+              <div className="flex flex-col gap-2 group">
+                <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">End Date:</label>
+                <div
+                  onClick={() => {
+                    try { document.getElementById('end-date-input').showPicker(); }
+                    catch (e) { document.getElementById('end-date-input').focus(); }
+                  }}
+                  className="relative flex items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 cursor-pointer hover:border-[#B2E642]/50 transition-all group-focus-within:border-[#B2E642] group-focus-within:ring-2 group-focus-within:ring-[#B2E642]/20"
+                >
+                  <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] mr-3 text-base opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-white text-base font-medium">
+                    {endDate ? format(new Date(endDate + "T00:00:00"), "dd MMM yyyy") : "Select date"}
+                  </span>
+                  <input
+                    id="end-date-input"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 lg:col-span-2">
+                <button
+                  onClick={setLast30Days}
+                  className={`flex-1 font-bold py-3.5 px-4 rounded-xl border transition-all active:scale-[0.97] ${isLast30Active
+                    ? "bg-[#B2E642] text-black border-[#B2E642]"
+                    : "bg-[#1e293b] hover:bg-[#334155] text-slate-300 border-slate-700"
+                    }`}
+                >
+                  Last 30d
+                </button>
+                <button
+                  onClick={setLast90Days}
+                  className={`flex-1 font-bold py-3.5 px-4 rounded-xl border transition-all active:scale-[0.97] ${isLast90Active
+                    ? "bg-[#B2E642] text-black border-[#B2E642]"
+                    : "bg-[#1e293b] hover:bg-[#334155] text-slate-300 border-slate-700"
+                    }`}
+                >
+                  Last 90d
+                </button>
+                <button
+                  onClick={clearFilter}
+                  className={`flex-1 font-bold py-3.5 px-4 rounded-xl border transition-all active:scale-[0.97] ${isFullPlanActive
+                    ? "bg-[#B2E642] text-black border-[#B2E642]"
+                    : "bg-[#1e293b] hover:bg-[#334155] text-slate-300 border-slate-700"
+                    }`}
+                  title="Reset to Full Plan"
+                >
+                  Full Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          showFiltersMobile && (
+            <div className="fixed inset-0 z-[100] flex items-end justify-center">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFiltersMobile(false)}></div>
+              <div className="relative bg-[#1f2937] w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-t border-gray-700">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-white">Filter Period</h3>
+                  <button onClick={() => setShowFiltersMobile(false)} className="text-gray-400 h-10 w-10 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faTimes} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">Start Date</label>
+                      <div
+                        onClick={() => document.getElementById('start-date-input-mobile').showPicker()}
+                        className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 flex items-center gap-3"
+                      >
+                        <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-lg" />
+                        <span className="text-white text-base font-bold">
+                          {startDate ? format(new Date(startDate + "T00:00:00"), "dd/MM/yy") : "Start"}
+                        </span>
+                        <input
+                          id="start-date-input-mobile"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="absolute opacity-0 pointer-events-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">End Date</label>
+                      <div
+                        onClick={() => document.getElementById('end-date-input-mobile').showPicker()}
+                        className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 flex items-center gap-3"
+                      >
+                        <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-lg" />
+                        <span className="text-white text-base font-bold">
+                          {endDate ? format(new Date(endDate + "T00:00:00"), "dd/MM/yy") : "End"}
+                        </span>
+                        <input
+                          id="end-date-input-mobile"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="absolute opacity-0 pointer-events-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={setLast30Days}
+                      className={`py-4 rounded-xl text-xs font-bold border transition-all ${isLast30Active
+                        ? "bg-[#B2E642] text-black border-[#B2E642]"
+                        : "bg-[#1e293b] text-slate-300 border-slate-700"
+                        }`}
+                    >
+                      Last 30d
+                    </button>
+                    <button
+                      onClick={setLast90Days}
+                      className={`py-4 rounded-xl text-xs font-bold border transition-all ${isLast90Active
+                        ? "bg-[#B2E642] text-black border-[#B2E642]"
+                        : "bg-[#1e293b] text-slate-300 border-slate-700"
+                        }`}
+                    >
+                      Last 90d
+                    </button>
+                    <button
+                      onClick={clearFilter}
+                      className={`py-4 rounded-xl text-xs font-bold border transition-all ${isFullPlanActive
+                        ? "bg-[#B2E642] text-black border-[#B2E642]"
+                        : "bg-[#1e293b] text-slate-300 border-slate-700"
+                        }`}
+                    >
+                      Full Plan
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-6 border-t border-gray-700/50">
+                    <button
+                      onClick={() => { generatePDF(); setShowFiltersMobile(false); }}
+                      className="flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-4 rounded-xl shadow-md transform active:scale-[0.98]"
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} />
+                      <span className="text-base">Export PDF</span>
+                    </button>
+                    <button
+                      onClick={() => setShowFiltersMobile(false)}
+                      className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl transform active:scale-[0.98]"
+                    >
+                      Apply Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        )}
       </div>
 
       {loading && (
@@ -370,17 +724,24 @@ function Analytics({ session }) {
           {/* Plan Overview */}
           {viewMode === VIEW_MODES.MONTHS && planChartData.length > 0 && (
             <div className="bg-[#1f2937] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-700">
-              <div className="flex justify-between items-center mb-4 sm:mb-6">
-                <h3 className="text-xl font-bold text-white">Plan Overview</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6 sm:mb-8">
+                <h3 className="text-xl sm:text-2xl font-bold text-white">Plan Overview</h3>
+                <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700">
+                  <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-xs" />
+                  <span className="text-gray-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+                    {isFullPlanActive ? "Full Plan: " : "Analyzing: "}
+                    {startDate ? format(new Date(startDate + "T00:00:00"), "dd MMM yyyy") : "..."} - {endDate ? format(new Date(endDate + "T00:00:00"), "dd MMM yyyy") : "..."}
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {/* Stats */}
-                <div className="flex flex-col gap-3 sm:gap-4">
-                  <div className="bg-[#111827] p-3 sm:p-4 rounded-lg border border-gray-700">
-                    <p className="text-gray-400 text-sm mb-2 sm:mb-3">
+                <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 sm:gap-4">
+                  <div className="bg-[#111827] p-3 sm:p-4 rounded-xl border border-gray-700 col-span-2 lg:col-span-1">
+                    <p className="text-gray-400 text-xs sm:text-sm uppercase tracking-wider font-semibold mb-3">
                       Total Work
                     </p>
-                    <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-2 sm:gap-3 sm:gap-6">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-baseline gap-2">
                         <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
                           {planTotalSessions}
@@ -389,7 +750,7 @@ function Analytics({ session }) {
                           Sessions
                         </p>
                       </div>
-                      <div className="hidden sm:block h-6 sm:h-8 w-[1px] bg-gray-700"></div>
+                      <div className="w-px h-8 bg-gray-700" />
                       <div className="flex items-baseline gap-2">
                         <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
                           {planUniqueDaysCount}
@@ -400,43 +761,38 @@ function Analytics({ session }) {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-[#111827] p-3 sm:p-4 rounded-lg border border-gray-700">
-                    <p className="text-gray-400 text-sm mb-1 sm:mb-2">
+                  <div className="bg-[#111827] p-3 sm:p-4 rounded-xl border border-gray-700 col-span-2 lg:col-span-1">
+                    <p className="text-gray-400 text-xs sm:text-sm uppercase tracking-wider font-semibold mb-1">
                       Total Duration
                     </p>
                     <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#B2E642]">
-                      {planTotalDuration} min
+                      {planTotalDuration} <span className="text-xs font-normal">min</span>
                     </p>
                   </div>
                 </div>
 
                 {/* PieChart */}
-                <div className="h-72 sm:h-80 lg:h-96 min-h-[288px] sm:min-h-[320px] lg:min-h-[384px]">
-                  <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                    minWidth={300}
-                    minHeight={288}
-                  >
+                <div className="h-[420px] sm:h-[450px] lg:h-[480px] w-full flex flex-col items-center">
+                  <ResponsiveContainer width="100%" height="85%">
                     <PieChart>
                       <Pie
                         data={planChartData}
                         cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
+                        cy="45%"
+                        innerRadius={isMobile ? 65 : 80}
+                        outerRadius={isMobile ? 90 : 120}
                         fill="#8884d8"
                         paddingAngle={5}
                         dataKey="value"
-                        label={({ name, value, percent }) =>
+                        label={({ percent, value }) =>
                           !isMobile
-                            ? `${(percent * 100).toFixed(0)}% (${value} min)`
+                            ? `${(percent * 100).toFixed(0)}% (${value}min)`
                             : ""
                         }
                         labelLine={false}
                         onClick={handleCategoryClick}
                         style={{
-                          fontSize: "14px",
+                          fontSize: "13px",
                           fontWeight: "bold",
                           cursor: "pointer",
                         }}
@@ -464,26 +820,29 @@ function Analytics({ session }) {
                           name,
                         ]}
                       />
-                      {/* Legend */}
                       <Legend
                         wrapperStyle={{
-                          paddingTop: "20px",
+                          paddingTop: "15px",
+                          fontSize: isMobile ? "11px" : "12px",
+                          width: "100%"
                         }}
+                        layout="horizontal"
+                        align="center"
+                        verticalAlign="bottom"
                         iconType="circle"
-                        formatter={(value, entry) => {
-                          // Quebrar nomes longos
-                          const maxLength = isMobile ? 15 : 25;
+                        formatter={(value) => {
+                          const maxLength = isMobile ? 15 : 30;
                           const displayName =
                             value.length > maxLength
                               ? value.substring(0, maxLength) + "..."
                               : value;
-                          return displayName;
+                          return <span className="text-gray-400 font-medium">{displayName}</span>;
                         }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                   {!showCategoryModal && (
-                    <p className="text-center text-gray-400 text-sm mt-2">
+                    <p className="text-center text-gray-500 text-[10px] sm:text-xs mt-4 opacity-60 italic">
                       Click on a segment to view category details
                     </p>
                   )}
@@ -493,7 +852,7 @@ function Analytics({ session }) {
           )}
 
           {viewMode === VIEW_MODES.MONTHS && (
-            <MonthView sessions={sessions} onMonthClick={handleMonthClick} />
+            <MonthView sessions={filteredSessions} onMonthClick={handleMonthClick} />
           )}
 
           {viewMode === VIEW_MODES.WORKOUTS && (
@@ -573,10 +932,10 @@ function Analytics({ session }) {
 
               {/* Additional Stats */}
               {(() => {
-                const categoryActivities = planActivities.filter(
+                const categoryActivities = filteredActivities.filter(
                   (a) => a.Category?.Name === modalCategoryData.name,
                 );
-                const categorySessions = sessions.filter((session) =>
+                const categorySessions = filteredSessions.filter((session) =>
                   categoryActivities.some(
                     (activity) => activity.TrainingSessionId === session.Id,
                   ),
@@ -626,7 +985,7 @@ function Analytics({ session }) {
                 </h3>
                 <div className="space-y-3">
                   {(() => {
-                    const categoryActivities = planActivities.filter(
+                    const categoryActivities = filteredActivities.filter(
                       (a) => a.Category?.Name === modalCategoryData.name,
                     );
                     const exerciseBreakdown = categoryActivities.reduce(
