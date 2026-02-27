@@ -2,6 +2,7 @@ import AuthForm from "../../components/auth/AuthForm";
 import InputField from "../../components/ui/InputField";
 import Logo from "../../assets/logo.png";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PrimaryButton from "../../components/ui/PrimaryButton";
 import SecondaryLink from "../../components/ui/SecondaryLink";
 import { supabase } from "../../config/supabaseClient";
@@ -13,6 +14,7 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -39,8 +41,9 @@ function Register() {
     } else {
       setIsError(false);
       setMessage(
-        "Success! Please check your email for a confirmation link to complete your registration."
+        "Account created! Redirecting to login..."
       );
+      setTimeout(() => navigate("/"), 2500);
     }
   };
   return (
