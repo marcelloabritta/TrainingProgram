@@ -21,8 +21,8 @@ function WeekDetails({ session }) {
   const navigate = useNavigate();
 
   const handleOpenCreateSessionModal = (date) => {
-    setSelectedDateForSession(date); 
-    setIsCreateSessionModalOpen(true); 
+    setSelectedDateForSession(date);
+    setIsCreateSessionModalOpen(true);
   };
   const handleCloseCreateSessionModal = () =>
     setIsCreateSessionModalOpen(false);
@@ -79,60 +79,95 @@ function WeekDetails({ session }) {
     };
   }, [week, setTitle, setShowBackButton]);
 
- const handleAddTraining = async (period) => {
-        if (!selectedDateForSession) return; 
+  const handleAddTraining = async (period) => {
+    if (!selectedDateForSession) return;
 
-        try {
-            const newSessionData = {
-                Date: selectedDateForSession,
-                Period: period,
-                MicrocycleId: week?.Id,
-                UserId: session?.user?.id,
-            };
+    try {
+      const newSessionData = {
+        Date: selectedDateForSession,
+        Period: period,
+        MicrocycleId: week?.Id,
+        UserId: session?.user?.id,
+      };
 
-            const { data, error } = await supabase
-                .from('TrainingSessions')
-                .insert(newSessionData)
-                .select('*, Activities(*)')
-                .single();
-            
-            if (error) throw error;
-            
-            if (data) {
-                setWeek(currentWeek => ({
-                    ...currentWeek,
-                    TrainingSessions: [...currentWeek.TrainingSessions, data]
-                }));
-                handleCloseCreateSessionModal(); 
-                navigate(`/plan/${planId}/session/${data.Id}`);
-            }
-        } catch (err) {
-            console.error("Error creating session:", err);
-            setError(err.message);
-        }
-    };
+      const { data, error } = await supabase
+        .from('TrainingSessions')
+        .insert(newSessionData)
+        .select('*, Activities(*)')
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setWeek(currentWeek => ({
+          ...currentWeek,
+          TrainingSessions: [...currentWeek.TrainingSessions, data]
+        }));
+        handleCloseCreateSessionModal();
+        navigate(`/plan/${planId}/session/${data.Id}`);
+      }
+    } catch (err) {
+      console.error("Error creating session:", err);
+      setError(err.message);
+    }
+  };
 
   const handleMarkAsRestDay = async (sessionDate) => {
     const newRestDayData = {
       Date: sessionDate,
       MicrocycleId: week?.Id,
       UserId: session?.user?.id,
-      IsRestDay: true, 
+      IsRestDay: true,
     };
 
     const { data, error } = await supabase
       .from("TrainingSessions")
       .insert(newRestDayData)
-      .select("*, Activities(*)") 
+      .select("*, Activities(*)")
       .single();
 
     if (error) {
       setError(error.message);
     } else if (data) {
-
       setWeek((currentWeek) => ({
         ...currentWeek,
         TrainingSessions: [...currentWeek.TrainingSessions, data],
+      }));
+    }
+  };
+
+  const handleRemoveRestDay = async (sessionId) => {
+    const { error } = await supabase
+      .from("TrainingSessions")
+      .delete()
+      .eq("Id", sessionId);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setWeek((currentWeek) => ({
+        ...currentWeek,
+        TrainingSessions: currentWeek.TrainingSessions.filter(
+          (s) => s.Id !== sessionId
+        ),
+      }));
+    }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    const { error } = await supabase
+      .from("TrainingSessions")
+      .delete()
+      .eq("Id", sessionId);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setWeek((currentWeek) => ({
+        ...currentWeek,
+        TrainingSessions: currentWeek.TrainingSessions.filter(
+          (s) => s.Id !== sessionId
+        ),
       }));
     }
   };
@@ -159,6 +194,8 @@ function WeekDetails({ session }) {
             microcycleId={microcycleId}
             onCreateSession={handleOpenCreateSessionModal}
             onMarkAsRestDay={handleMarkAsRestDay}
+            onRemoveRestDay={handleRemoveRestDay}
+            onDeleteSession={handleDeleteSession}
           />
         );
       })}

@@ -8,6 +8,8 @@ function DaySchedule({
   planId,
   onCreateSession,
   onMarkAsRestDay,
+  onRemoveRestDay,
+  onDeleteSession,
 }) {
   const restDaySession = trainings.find((session) => session.IsRestDay);
 
@@ -18,8 +20,8 @@ function DaySchedule({
     <div className="flex flex-col gap-3 p-4 bg-[#1f2937] rounded-lg">
       <div className="flex justify-between items-center">
         <h2 className="font-bold text-white">{format(date, "EEEE, M/d")}</h2>
-        <button 
-          onClick={() => onCreateSession(date)} 
+        <button
+          onClick={() => onCreateSession(date)}
           className="text-[#B2E642] font-semibold text-sm hover:text-green-300"
         >
           + Add Session
@@ -27,21 +29,29 @@ function DaySchedule({
       </div>
 
       <div className="flex flex-col gap-2">
-        {/* 2. AGORA, A LÓGICA DE RENDERIZAÇÃO É MUITO MAIS CLARA E SEGURA */}
-
-        {/* Se encontramos um 'Rest Day', mostre-o. */}
+        {/* Se encontramos um 'Rest Day', mostre-o com botão de remover */}
         {restDaySession && (
-          <div className="text-center bg-gray-800 text-green-400 rounded-lg p-4 font-semibold">
+          <div className="flex items-center justify-between bg-gray-800 text-green-400 rounded-lg px-4 py-3 font-semibold">
             <p>Rest Day</p>
+            <button
+              onClick={() => onRemoveRestDay(restDaySession.Id)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 active:bg-red-400/20 transition-colors text-base"
+              title="Remove Rest Day"
+            >
+              ×
+            </button>
           </div>
         )}
 
-
         {actualTrainings.length > 0 &&
           actualTrainings.map((session) => (
-            <SessionList key={session.Id} session={session} planId={planId} />
+            <SessionList
+              key={session.Id}
+              session={session}
+              planId={planId}
+              onDeleteSession={onDeleteSession}
+            />
           ))}
-
 
         {trainings.length === 0 && (
           <div className="text-center border-2 border-dashed border-gray-600 text-gray-500 rounded-lg p-4 flex justify-center items-center gap-4">
