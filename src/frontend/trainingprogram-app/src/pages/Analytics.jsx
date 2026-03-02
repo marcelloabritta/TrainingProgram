@@ -191,9 +191,9 @@ function Analytics({ session }) {
   // Period Filtering Logic
   const filteredSessions = sessions.filter((s) => {
     if (!startDate && !endDate) return true;
-    const sessionDate = new Date(s.Date + "T00:00:00"); // Ensure local date
-    if (startDate && sessionDate < new Date(startDate + "T00:00:00")) return false;
-    if (endDate && sessionDate > new Date(endDate + "T23:59:59")) return false;
+    const sessionDateStr = s.Date.split("T")[0]; // YYYY-MM-DD
+    if (startDate && sessionDateStr < startDate) return false;
+    if (endDate && sessionDateStr > endDate) return false;
     return true;
   });
 
@@ -203,29 +203,41 @@ function Analytics({ session }) {
 
   // Quick Filters
   const setLast30Days = () => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - 29);
+    const plan = plans.find(p => p.Id === selectedPlanId);
+    let baseDate = new Date();
+    if (plan && plan.FullEndDate) {
+      baseDate = new Date(plan.FullEndDate + "T00:00:00");
+    }
+    const start = new Date(baseDate);
+    start.setDate(baseDate.getDate() - 29);
     setStartDate(format(start, "yyyy-MM-dd"));
-    setEndDate(format(now, "yyyy-MM-dd"));
+    setEndDate(format(baseDate, "yyyy-MM-dd"));
   };
 
   const setLast90Days = () => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - 89);
+    const plan = plans.find(p => p.Id === selectedPlanId);
+    let baseDate = new Date();
+    if (plan && plan.FullEndDate) {
+      baseDate = new Date(plan.FullEndDate + "T00:00:00");
+    }
+    const start = new Date(baseDate);
+    start.setDate(baseDate.getDate() - 89);
     setStartDate(format(start, "yyyy-MM-dd"));
-    setEndDate(format(now, "yyyy-MM-dd"));
+    setEndDate(format(baseDate, "yyyy-MM-dd"));
   };
 
   // Helper to check active filter states
-  const now = new Date();
-  const last30Start = format(new Date(new Date().setDate(new Date().getDate() - 29)), "yyyy-MM-dd");
-  const last30End = format(now, "yyyy-MM-dd");
-  const last90Start = format(new Date(new Date().setDate(new Date().getDate() - 89)), "yyyy-MM-dd");
-  const last90End = format(now, "yyyy-MM-dd");
-
   const currentPlan = plans.find(p => p.Id === selectedPlanId);
+  let baseCheckDate = new Date();
+  if (currentPlan && currentPlan.FullEndDate) {
+    baseCheckDate = new Date(currentPlan.FullEndDate + "T00:00:00");
+  }
+
+  const last30Start = format(new Date(new Date(baseCheckDate).setDate(baseCheckDate.getDate() - 29)), "yyyy-MM-dd");
+  const last30End = format(baseCheckDate, "yyyy-MM-dd");
+  const last90Start = format(new Date(new Date(baseCheckDate).setDate(baseCheckDate.getDate() - 89)), "yyyy-MM-dd");
+  const last90End = format(baseCheckDate, "yyyy-MM-dd");
+
   const isLast30Active = startDate === last30Start && endDate === last30End;
   const isLast90Active = startDate === last90Start && endDate === last90End;
   const isFullPlanActive = currentPlan && startDate === currentPlan.FullStartDate && endDate === currentPlan.FullEndDate;
@@ -365,7 +377,8 @@ function Analytics({ session }) {
 
       sortedFilteredSessions.forEach(session => {
         if (!session.Date) return;
-        const date = new Date(session.Date + "T00:00:00");
+        const dateOnly = session.Date.split("T")[0];
+        const date = new Date(dateOnly + "T00:00:00");
         if (isNaN(date.getTime())) return;
 
         const monthKey = format(date, "MMMM yyyy");
@@ -518,8 +531,8 @@ function Analytics({ session }) {
                   : "bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-500"
                 }`}
             >
-              <FontAwesomeIcon icon={showFiltersMobile ? faTimes : faFilter} className={showFiltersMobile ? "text-black" : "text-[#B2E642]"} />
-              <span className="text-base font-bold uppercase tracking-wider">Filters</span>
+              <FontAwesomeIcon icon={showFiltersMobile ? faTimes : faFilePdf} className={showFiltersMobile ? "text-black" : "text-[#B2E642]"} />
+              <span className="text-base font-bold uppercase tracking-wider">Create Report</span>
             </button>
           </div>
         </div>
@@ -614,7 +627,7 @@ function Analytics({ session }) {
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFiltersMobile(false)}></div>
               <div className="relative bg-[#1f2937] w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-t border-gray-700">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-white">Filter Period</h3>
+                  <h3 className="text-xl font-bold text-white">Report Options</h3>
                   <button onClick={() => setShowFiltersMobile(false)} className="text-gray-400 h-10 w-10 flex items-center justify-center">
                     <FontAwesomeIcon icon={faTimes} />
                   </button>
@@ -1043,7 +1056,8 @@ function Analytics({ session }) {
                         );
                         if (!session) return acc;
 
-                        const date = new Date(session.Date);
+                        const dateOnly = session.Date.split("T")[0];
+                        const date = new Date(dateOnly + "T00:00:00");
                         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
                         const monthName = date.toLocaleDateString("en-US", {
                           month: "short",
