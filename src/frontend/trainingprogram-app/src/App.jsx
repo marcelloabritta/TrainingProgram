@@ -16,6 +16,7 @@ import TrainingSessionDetails from "./pages/TrainingSessionDetails";
 import Settings from "./pages/Settings";
 import ExerciseLibrary from "./pages/ExerciseLibrary";
 import Analytics from "./pages/Analytics";
+import NotFound from "./pages/NotFound";
 
 function App() {
   const [session, setSession] = useState(null);
@@ -137,6 +138,7 @@ function App() {
             )
           }
         />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </HeaderProvider>
   );

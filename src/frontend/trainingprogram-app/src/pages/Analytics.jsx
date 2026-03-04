@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useHeader } from "../context/HeaderContext";
 import { supabase } from "../config/supabaseClient";
 import MonthView from "../components/analytics/MonthView";
 import WorkoutView from "../components/analytics/WorkoutView";
 import ActivityView from "../components/analytics/ActivityView";
+import Logo from "../assets/logo.png";
 import {
   PieChart,
   Pie,
@@ -17,7 +19,7 @@ import { format, addWeeks, subDays } from "date-fns";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilePdf, faChevronLeft, faChevronRight, faCalendarAlt, faFilter, faTimes, faFileExport } from "@fortawesome/free-solid-svg-icons";
+import { faFilePdf, faChevronLeft, faChevronRight, faCalendarAlt, faFilter, faTimes, faFileExport, faPlus } from "@fortawesome/free-solid-svg-icons";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../components/analytics/DatePicker.css";
@@ -45,6 +47,7 @@ const COLORS = [
 
 function Analytics({ session }) {
   const { setTitle } = useHeader();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState(VIEW_MODES.MONTHS);
 
   // Data State
@@ -479,18 +482,59 @@ function Analytics({ session }) {
   const planUniqueDaysCount = new Set(filteredSessions.map((s) => s.Date.split("T")[0]))
     .size;
 
-  if (
-    loading &&
-    viewMode === VIEW_MODES.MONTHS &&
-    !selectedPlanId &&
-    plans.length === 0
-  ) {
-    if (plans.length === 0 && !loading)
-      return (
-        <div className="text-center text-white p-10">
-          No plans found. Create a plan first.
+  if (!loading && plans.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="relative group">
+          {/* Decorative Glow */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#B2E642] to-blue-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+
+          <div className="relative bg-[#1f2937]/80 backdrop-blur-xl border border-gray-700 p-8 sm:p-12 rounded-3xl shadow-2xl flex flex-col items-center text-center max-w-lg">
+            <div className="w-24 h-24 bg-gray-900/50 rounded-2xl flex items-center justify-center mb-8 transform group-hover:rotate-6 transition-transform duration-500 shadow-inner border border-gray-700/30">
+              <div className="relative">
+                <img src={Logo} alt="VanGo Logo" className="w-14 h-14 object-contain" />
+                <div className="absolute -top-1 -right-1 bg-blue-500 rounded-md p-1 shadow-lg ring-2 ring-gray-900">
+                  <FontAwesomeIcon icon={faPlus} className="text-white text-[10px]" />
+                </div>
+              </div>
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-4 tracking-tight">
+              Unlock Your <span className="text-[#B2E642]">Insights</span>
+            </h2>
+
+            <p className="text-gray-400 text-lg mb-10 leading-relaxed font-medium">
+              Your performance journey starts here. Once you create your first training plan,
+              this dashboard will come alive with detailed metrics and progress charts.
+            </p>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="group flex items-center gap-3 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-extrabold py-4 px-10 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(178,230,66,0.3)] hover:shadow-[0_15px_30px_-10px_rgba(178,230,66,0.5)] transform hover:-translate-y-1 active:scale-95"
+            >
+              <FontAwesomeIcon icon={faCalendarAlt} className="text-xl" />
+              <span className="text-lg uppercase tracking-wide">Start Training Now</span>
+              <FontAwesomeIcon icon={faChevronRight} className="text-sm group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <div className="mt-8 pt-8 border-t border-gray-700/50 w-full flex justify-center gap-6">
+              <div className="flex flex-col items-center opacity-40">
+                <div className="w-2 h-2 rounded-full bg-blue-500 mb-2"></div>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Activity</span>
+              </div>
+              <div className="flex flex-col items-center opacity-40">
+                <div className="w-2 h-2 rounded-full bg-[#B2E642] mb-2"></div>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Volume</span>
+              </div>
+              <div className="flex flex-col items-center opacity-40">
+                <div className="w-2 h-2 rounded-full bg-purple-500 mb-2"></div>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Recovery</span>
+              </div>
+            </div>
+          </div>
         </div>
-      );
+      </div>
+    );
   }
 
   return (
@@ -554,6 +598,11 @@ function Analytics({ session }) {
                     dateFormat="dd MMM yyyy"
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
                     placeholderText="Select date"
+                    portalId="root"
+                    wrapperClassName="w-full"
+                    showPopperArrow={false}
+                    readOnly={true}
+                    inputMode="none"
                   />
                   <FontAwesomeIcon
                     icon={faCalendarAlt}
@@ -572,6 +621,11 @@ function Analytics({ session }) {
                     dateFormat="dd MMM yyyy"
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
                     placeholderText="Select date"
+                    portalId="root"
+                    wrapperClassName="w-full"
+                    showPopperArrow={false}
+                    readOnly={true}
+                    inputMode="none"
                   />
                   <FontAwesomeIcon
                     icon={faCalendarAlt}
@@ -636,6 +690,11 @@ function Analytics({ session }) {
                           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
                           placeholderText="Start"
                           popperPlacement="top-start"
+                          withPortal
+                          wrapperClassName="w-full"
+                          showPopperArrow={false}
+                          readOnly={true}
+                          inputMode="none"
                         />
                         <FontAwesomeIcon
                           icon={faCalendarAlt}
@@ -653,6 +712,11 @@ function Analytics({ session }) {
                           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
                           placeholderText="End"
                           popperPlacement="top-end"
+                          withPortal
+                          wrapperClassName="w-full"
+                          showPopperArrow={false}
+                          readOnly={true}
+                          inputMode="none"
                         />
                         <FontAwesomeIcon
                           icon={faCalendarAlt}
