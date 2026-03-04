@@ -17,7 +17,10 @@ import { format, addWeeks, subDays } from "date-fns";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilePdf, faChevronLeft, faChevronRight, faCalendarAlt, faFilter, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faFilePdf, faChevronLeft, faChevronRight, faCalendarAlt, faFilter, faTimes, faFileExport } from "@fortawesome/free-solid-svg-icons";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import "../components/analytics/DatePicker.css";
 
 const VIEW_MODES = {
   MONTHS: "MONTHS",
@@ -511,14 +514,14 @@ function Analytics({ session }) {
           </div>
 
           <div className="flex items-center gap-2 h-full min-h-[50px]">
-            {/* Desktop-only PDF button next to Select */}
+            {/* Desktop primary button */}
             <button
               onClick={generatePDF}
               className="hidden sm:flex flex-1 sm:flex-none items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold h-[50px] px-8 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-[#B2E642]/10"
               title="Generate PDF Report"
             >
               <FontAwesomeIcon icon={faFilePdf} />
-              <span className="text-base">Export PDF</span>
+              <span className="text-base uppercase tracking-wider">Create Report</span>
             </button>
 
             {/* Filter Toggle Button (Mobile Only) */}
@@ -544,23 +547,17 @@ function Analytics({ session }) {
               {/* Start Date */}
               <div className="flex flex-col gap-2 group">
                 <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">Start Date:</label>
-                <div
-                  onClick={() => {
-                    try { document.getElementById('start-date-input').showPicker(); }
-                    catch (e) { document.getElementById('start-date-input').focus(); }
-                  }}
-                  className="relative flex items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 cursor-pointer hover:border-[#B2E642]/50 transition-all group-focus-within:border-[#B2E642] group-focus-within:ring-2 group-focus-within:ring-[#B2E642]/20"
-                >
-                  <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] mr-3 text-base opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-white text-base font-medium">
-                    {startDate ? format(new Date(startDate + "T00:00:00"), "dd MMM yyyy") : "Select date"}
-                  </span>
-                  <input
-                    id="start-date-input"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                <div className="relative">
+                  <DatePicker
+                    selected={startDate ? new Date(startDate + "T00:00:00") : null}
+                    onChange={(date) => setStartDate(date ? format(date, "yyyy-MM-dd") : "")}
+                    dateFormat="dd MMM yyyy"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
+                    placeholderText="Select date"
+                  />
+                  <FontAwesomeIcon
+                    icon={faCalendarAlt}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B2E642] text-base opacity-70 pointer-events-none"
                   />
                 </div>
               </div>
@@ -568,23 +565,17 @@ function Analytics({ session }) {
               {/* End Date */}
               <div className="flex flex-col gap-2 group">
                 <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">End Date:</label>
-                <div
-                  onClick={() => {
-                    try { document.getElementById('end-date-input').showPicker(); }
-                    catch (e) { document.getElementById('end-date-input').focus(); }
-                  }}
-                  className="relative flex items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 cursor-pointer hover:border-[#B2E642]/50 transition-all group-focus-within:border-[#B2E642] group-focus-within:ring-2 group-focus-within:ring-[#B2E642]/20"
-                >
-                  <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] mr-3 text-base opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-white text-base font-medium">
-                    {endDate ? format(new Date(endDate + "T00:00:00"), "dd MMM yyyy") : "Select date"}
-                  </span>
-                  <input
-                    id="end-date-input"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                <div className="relative">
+                  <DatePicker
+                    selected={endDate ? new Date(endDate + "T00:00:00") : null}
+                    onChange={(date) => setEndDate(date ? format(date, "yyyy-MM-dd") : "")}
+                    dateFormat="dd MMM yyyy"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
+                    placeholderText="Select date"
+                  />
+                  <FontAwesomeIcon
+                    icon={faCalendarAlt}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B2E642] text-base opacity-70 pointer-events-none"
                   />
                 </div>
               </div>
@@ -637,39 +628,35 @@ function Analytics({ session }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
                       <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">Start Date</label>
-                      <div
-                        onClick={() => document.getElementById('start-date-input-mobile').showPicker()}
-                        className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 flex items-center gap-3"
-                      >
-                        <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-lg" />
-                        <span className="text-white text-base font-bold">
-                          {startDate ? format(new Date(startDate + "T00:00:00"), "dd/MM/yy") : "Start"}
-                        </span>
-                        <input
-                          id="start-date-input-mobile"
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="absolute opacity-0 pointer-events-none"
+                      <div className="relative">
+                        <DatePicker
+                          selected={startDate ? new Date(startDate + "T00:00:00") : null}
+                          onChange={(date) => setStartDate(date ? format(date, "yyyy-MM-dd") : "")}
+                          dateFormat="dd/MM/yy"
+                          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
+                          placeholderText="Start"
+                          popperPlacement="top-start"
+                        />
+                        <FontAwesomeIcon
+                          icon={faCalendarAlt}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B2E642] text-lg pointer-events-none"
                         />
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">End Date</label>
-                      <div
-                        onClick={() => document.getElementById('end-date-input-mobile').showPicker()}
-                        className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 flex items-center gap-3"
-                      >
-                        <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-lg" />
-                        <span className="text-white text-base font-bold">
-                          {endDate ? format(new Date(endDate + "T00:00:00"), "dd/MM/yy") : "End"}
-                        </span>
-                        <input
-                          id="end-date-input-mobile"
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="absolute opacity-0 pointer-events-none"
+                      <div className="relative">
+                        <DatePicker
+                          selected={endDate ? new Date(endDate + "T00:00:00") : null}
+                          onChange={(date) => setEndDate(date ? format(date, "yyyy-MM-dd") : "")}
+                          dateFormat="dd/MM/yy"
+                          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
+                          placeholderText="End"
+                          popperPlacement="top-end"
+                        />
+                        <FontAwesomeIcon
+                          icon={faCalendarAlt}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B2E642] text-lg pointer-events-none"
                         />
                       </div>
                     </div>
@@ -711,7 +698,7 @@ function Analytics({ session }) {
                       className="flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-4 rounded-xl shadow-md transform active:scale-[0.98]"
                     >
                       <FontAwesomeIcon icon={faFilePdf} />
-                      <span className="text-base">Export PDF</span>
+                      <span className="text-base">Create Report</span>
                     </button>
                     <button
                       onClick={() => setShowFiltersMobile(false)}
