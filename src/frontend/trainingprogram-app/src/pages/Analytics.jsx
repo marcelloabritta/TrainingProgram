@@ -601,7 +601,7 @@ function Analytics({ session }) {
                     portalId="root"
                     wrapperClassName="w-full"
                     showPopperArrow={false}
-                    readOnly={true}
+                    onFocus={(e) => e.target.blur()}
                     inputMode="none"
                   />
                   <FontAwesomeIcon
@@ -624,7 +624,7 @@ function Analytics({ session }) {
                     portalId="root"
                     wrapperClassName="w-full"
                     showPopperArrow={false}
-                    readOnly={true}
+                    onFocus={(e) => e.target.blur()}
                     inputMode="none"
                   />
                   <FontAwesomeIcon
@@ -689,11 +689,11 @@ function Analytics({ session }) {
                           dateFormat="dd/MM/yy"
                           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
                           placeholderText="Start"
-                          popperPlacement="top-start"
-                          withPortal
+                          popperPlacement="bottom-start"
+                          portalId="root"
                           wrapperClassName="w-full"
                           showPopperArrow={false}
-                          readOnly={true}
+                          onFocus={(e) => e.target.blur()}
                           inputMode="none"
                         />
                         <FontAwesomeIcon
@@ -711,11 +711,11 @@ function Analytics({ session }) {
                           dateFormat="dd/MM/yy"
                           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
                           placeholderText="End"
-                          popperPlacement="top-end"
-                          withPortal
+                          popperPlacement="bottom-end"
+                          portalId="root"
                           wrapperClassName="w-full"
                           showPopperArrow={false}
-                          readOnly={true}
+                          onFocus={(e) => e.target.blur()}
                           inputMode="none"
                         />
                         <FontAwesomeIcon
