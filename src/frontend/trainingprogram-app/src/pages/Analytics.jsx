@@ -45,6 +45,86 @@ const COLORS = [
   "#84cc16"  // Grass
 ];
 
+const CustomDateInput = React.forwardRef(({ value, onClick, placeholder, className }, ref) => (
+  <button
+    type="button"
+    className={className}
+    onClick={onClick}
+    ref={ref}
+  >
+    {value || placeholder}
+  </button>
+));
+
+const renderCustomHeader = ({
+  date,
+  changeYear,
+  changeMonth,
+  decreaseMonth,
+  increaseMonth,
+  prevMonthButtonDisabled,
+  nextMonthButtonDisabled,
+}) => {
+  const years = [];
+  for (let i = 1990; i <= new Date().getFullYear() + 10; i++) {
+    years.push(i);
+  }
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+
+  return (
+    <div className="custom-datepicker-header">
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+        onClick={decreaseMonth}
+        disabled={prevMonthButtonDisabled}
+        className="custom-header-button"
+      >
+        <FontAwesomeIcon icon={faChevronLeft} />
+      </button>
+
+      <div className="custom-header-selectors">
+        <select
+          value={months[date.getMonth()]}
+          onChange={({ target: { value } }) => changeMonth(months.indexOf(value))}
+          className="custom-header-select"
+        >
+          {months.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={date.getFullYear()}
+          onChange={({ target: { value } }) => changeYear(parseInt(value))}
+          className="custom-header-select"
+        >
+          {years.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+        onClick={increaseMonth}
+        disabled={nextMonthButtonDisabled}
+        className="custom-header-button"
+      >
+        <FontAwesomeIcon icon={faChevronRight} />
+      </button>
+    </div>
+  );
+};
+
 function Analytics({ session }) {
   const { setTitle } = useHeader();
   const navigate = useNavigate();
@@ -65,8 +145,8 @@ function Analytics({ session }) {
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
 
   // Period Filter State
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -127,8 +207,8 @@ function Analytics({ session }) {
 
           return {
             ...plan,
-            FullStartDate: format(finalStart, "yyyy-MM-dd"),
-            FullEndDate: format(finalEnd, "yyyy-MM-dd")
+            FullStartDate: finalStart,
+            FullEndDate: finalEnd
           };
         });
 
@@ -198,8 +278,8 @@ function Analytics({ session }) {
   const filteredSessions = sessions.filter((s) => {
     if (!startDate && !endDate) return true;
     const sessionDateStr = s.Date.split("T")[0]; // YYYY-MM-DD
-    if (startDate && sessionDateStr < startDate) return false;
-    if (endDate && sessionDateStr > endDate) return false;
+    if (startDate && sessionDateStr < format(startDate, "yyyy-MM-dd")) return false;
+    if (endDate && sessionDateStr > format(endDate, "yyyy-MM-dd")) return false;
     return true;
   });
 
@@ -212,54 +292,53 @@ function Analytics({ session }) {
     const plan = plans.find(p => p.Id === selectedPlanId);
     let baseDate = new Date();
     if (plan && plan.FullEndDate) {
-      baseDate = new Date(plan.FullEndDate + "T00:00:00");
+      baseDate = new Date(plan.FullEndDate);
     }
     const start = new Date(baseDate);
     start.setDate(baseDate.getDate() - 29);
-    setStartDate(format(start, "yyyy-MM-dd"));
-    setEndDate(format(baseDate, "yyyy-MM-dd"));
+    setStartDate(start);
+    setEndDate(baseDate);
   };
 
   const setLast90Days = () => {
     const plan = plans.find(p => p.Id === selectedPlanId);
     let baseDate = new Date();
     if (plan && plan.FullEndDate) {
-      baseDate = new Date(plan.FullEndDate + "T00:00:00");
+      baseDate = new Date(plan.FullEndDate);
     }
     const start = new Date(baseDate);
     start.setDate(baseDate.getDate() - 89);
-    setStartDate(format(start, "yyyy-MM-dd"));
-    setEndDate(format(baseDate, "yyyy-MM-dd"));
+    setStartDate(start);
+    setEndDate(baseDate);
   };
 
   // Helper to check active filter states
   const currentPlan = plans.find(p => p.Id === selectedPlanId);
   let baseCheckDate = new Date();
   if (currentPlan && currentPlan.FullEndDate) {
-    baseCheckDate = new Date(currentPlan.FullEndDate + "T00:00:00");
+    baseCheckDate = new Date(currentPlan.FullEndDate);
   }
+
+  const sStr = startDate ? format(startDate, "yyyy-MM-dd") : "";
+  const eStr = endDate ? format(endDate, "yyyy-MM-dd") : "";
 
   const last30Start = format(new Date(new Date(baseCheckDate).setDate(baseCheckDate.getDate() - 29)), "yyyy-MM-dd");
   const last30End = format(baseCheckDate, "yyyy-MM-dd");
   const last90Start = format(new Date(new Date(baseCheckDate).setDate(baseCheckDate.getDate() - 89)), "yyyy-MM-dd");
   const last90End = format(baseCheckDate, "yyyy-MM-dd");
 
-  const isLast30Active = startDate === last30Start && endDate === last30End;
-  const isLast90Active = startDate === last90Start && endDate === last90End;
-  const isFullPlanActive = currentPlan && startDate === currentPlan.FullStartDate && endDate === currentPlan.FullEndDate;
+  const isLast30Active = sStr === last30Start && eStr === last30End;
+  const isLast90Active = sStr === last90Start && eStr === last90End;
+  const isFullPlanActive = currentPlan && sStr === format(currentPlan.FullStartDate, "yyyy-MM-dd") && eStr === format(currentPlan.FullEndDate, "yyyy-MM-dd");
 
   const clearFilter = () => {
     const currentPlan = plans.find(p => p.Id === selectedPlanId);
     if (currentPlan && currentPlan.FullStartDate && currentPlan.FullEndDate) {
       setStartDate(currentPlan.FullStartDate);
       setEndDate(currentPlan.FullEndDate);
-    } else if (currentPlan) {
-      // Fallback if dates are missing in plan object
-      setStartDate(currentPlan.FullStartDate || "");
-      setEndDate(currentPlan.FullEndDate || "");
     } else {
-      setStartDate("");
-      setEndDate("");
+      setStartDate(null);
+      setEndDate(null);
     }
   };
 
@@ -593,16 +672,13 @@ function Analytics({ session }) {
                 <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">Start Date:</label>
                 <div className="relative">
                   <DatePicker
-                    selected={startDate ? new Date(startDate + "T00:00:00") : null}
-                    onChange={(date) => setStartDate(date ? format(date, "yyyy-MM-dd") : "")}
+                    selected={startDate}
+                    onChange={setStartDate}
                     dateFormat="dd MMM yyyy"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
-                    placeholderText="Select date"
+                    customInput={<CustomDateInput className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none text-left" />}
                     portalId="root"
-                    wrapperClassName="w-full"
                     showPopperArrow={false}
-                    onFocus={(e) => e.target.blur()}
-                    inputMode="none"
+                    renderCustomHeader={renderCustomHeader}
                   />
                   <FontAwesomeIcon
                     icon={faCalendarAlt}
@@ -616,16 +692,13 @@ function Analytics({ session }) {
                 <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">End Date:</label>
                 <div className="relative">
                   <DatePicker
-                    selected={endDate ? new Date(endDate + "T00:00:00") : null}
-                    onChange={(date) => setEndDate(date ? format(date, "yyyy-MM-dd") : "")}
+                    selected={endDate}
+                    onChange={setEndDate}
                     dateFormat="dd MMM yyyy"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none"
-                    placeholderText="Select date"
+                    customInput={<CustomDateInput className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-3 text-white text-base font-medium cursor-pointer hover:border-[#B2E642]/50 focus:border-[#B2E642] focus:ring-2 focus:ring-[#B2E642]/20 transition-all outline-none text-left" />}
                     portalId="root"
-                    wrapperClassName="w-full"
                     showPopperArrow={false}
-                    onFocus={(e) => e.target.blur()}
-                    inputMode="none"
+                    renderCustomHeader={renderCustomHeader}
                   />
                   <FontAwesomeIcon
                     icon={faCalendarAlt}
@@ -684,17 +757,13 @@ function Analytics({ session }) {
                       <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">Start Date</label>
                       <div className="relative">
                         <DatePicker
-                          selected={startDate ? new Date(startDate + "T00:00:00") : null}
-                          onChange={(date) => setStartDate(date ? format(date, "yyyy-MM-dd") : "")}
+                          selected={startDate}
+                          onChange={setStartDate}
                           dateFormat="dd/MM/yy"
-                          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
-                          placeholderText="Start"
-                          popperPlacement="bottom-start"
-                          portalId="root"
-                          wrapperClassName="w-full"
+                          customInput={<CustomDateInput className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none text-left" />}
+                          withPortal
                           showPopperArrow={false}
-                          onFocus={(e) => e.target.blur()}
-                          inputMode="none"
+                          renderCustomHeader={renderCustomHeader}
                         />
                         <FontAwesomeIcon
                           icon={faCalendarAlt}
@@ -706,17 +775,13 @@ function Analytics({ session }) {
                       <label className="text-gray-400 font-bold text-xs uppercase tracking-widest ml-1">End Date</label>
                       <div className="relative">
                         <DatePicker
-                          selected={endDate ? new Date(endDate + "T00:00:00") : null}
-                          onChange={(date) => setEndDate(date ? format(date, "yyyy-MM-dd") : "")}
+                          selected={endDate}
+                          onChange={setEndDate}
                           dateFormat="dd/MM/yy"
-                          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none"
-                          placeholderText="End"
-                          popperPlacement="bottom-end"
-                          portalId="root"
-                          wrapperClassName="w-full"
+                          customInput={<CustomDateInput className="w-full bg-gray-800 border border-gray-700 rounded-xl px-12 py-4 text-white text-base font-bold cursor-pointer outline-none text-left" />}
+                          withPortal
                           showPopperArrow={false}
-                          onFocus={(e) => e.target.blur()}
-                          inputMode="none"
+                          renderCustomHeader={renderCustomHeader}
                         />
                         <FontAwesomeIcon
                           icon={faCalendarAlt}

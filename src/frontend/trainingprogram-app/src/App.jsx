@@ -6,7 +6,6 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import { Navigate, Route, Routes } from "react-router-dom";
 import UpdatePassword from "./pages/auth/UpdatePassword";
 import Register from "./pages/auth/Register";
-import CreatePlan from "./pages/CreatePlan";
 import PlanDetails from "./pages/PlanDetails";
 import MainLayout from "./components/layout/MainLayout";
 import WeekDetails from "./pages/WeekDetails";
@@ -20,12 +19,14 @@ import NotFound from "./pages/NotFound";
 
 function App() {
   const [session, setSession] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   return (
     <HeaderProvider>
       <AuthListener
         setSession={setSession}
+        setIsLoading={setIsLoading}
         setIsPasswordRecovery={setIsPasswordRecovery}
       />
       <Routes>
@@ -45,7 +46,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <DashBoard session={session} />
               </MainLayout>
@@ -55,21 +56,9 @@ function App() {
           }
         />
         <Route
-          path="/create-plan"
-          element={
-            session ? (
-              <MainLayout>
-                <CreatePlan session={session} />
-              </MainLayout>
-            ) : (
-              <Navigate to="/" />
-            )
-          }
-        />
-        <Route
           path="/dashboard/:planId"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <PlanDetails session={session} />
               </MainLayout>
@@ -81,7 +70,7 @@ function App() {
         <Route
           path="/plan/:planId/week/:weekNumber"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <WeekDetails session={session} />
               </MainLayout>
@@ -93,7 +82,7 @@ function App() {
         <Route
           path="/plan/:planId/session/:sessionId"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <TrainingSessionDetails session={session} />
               </MainLayout>
@@ -105,7 +94,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <Settings session={session} />
               </MainLayout>
@@ -117,7 +106,7 @@ function App() {
         <Route
           path="/library"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <ExerciseLibrary session={session} />
               </MainLayout>
@@ -129,7 +118,7 @@ function App() {
         <Route
           path="/analytics"
           element={
-            session ? (
+            isLoading ? null : session ? (
               <MainLayout>
                 <Analytics session={session} />
               </MainLayout>

@@ -3,13 +3,13 @@ import { supabase } from '../config/supabaseClient';
 
 
 export function usePlans(session) {
- 
+
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
 
- const fetchPlans = useCallback(async () => {
+  const fetchPlans = useCallback(async () => {
     const user = session?.user;
     if (!user) {
       setPlans([]);
@@ -27,7 +27,7 @@ export function usePlans(session) {
       if (error) throw error;
       setPlans(data);
     } catch (err) {
-      setError(err|| "Could not fetch the plans.");
+      setError(err || "Could not fetch the plans.");
     } finally {
       setLoading(false);
     }
@@ -52,10 +52,10 @@ export function usePlans(session) {
 
   const updatePlan = async (planId, updatedData) => {
     const { error } = await supabase
-    .rpc('update_plan_and_weeks', {
-      plan_id: planId,
-      plan_data: updatedData
-    });
+      .rpc('update_plan_and_weeks', {
+        plan_id: planId,
+        plan_data: updatedData
+      });
 
     if (error) {
       console.error("Error updating plan:", error);
@@ -64,5 +64,5 @@ export function usePlans(session) {
     }
   };
 
-  return { plans, loading, error, deletePlan, updatePlan };
+  return { plans, loading, error, deletePlan, updatePlan, fetchPlans };
 }

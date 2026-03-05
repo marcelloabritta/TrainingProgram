@@ -63,8 +63,8 @@
 .react-datepicker__day.react-datepicker__day--in-selecting-range,
 .react-datepicker__day.react-datepicker__day--in-range {
   background-color: var(--dp-accent) !important;
-  color: #3b82f6 !important;
-  /* Site Blue */
+  color: #111827 !important;
+  /* Site Dark Blue */
   font-weight: 800 !important;
 }
 
@@ -85,6 +85,8 @@
 .react-datepicker__day--today:not(.react-datepicker__day--selected) {
   font-weight: bold !important;
   color: var(--dp-accent) !important;
+  background-color: #111827 !important;
+  /* Site Dark Blue background for today */
 }
 
 .react-datepicker__triangle {
@@ -105,4 +107,87 @@
 
 .react-datepicker__input-container input {
   width: 100% !important;
+}
+
+/* Custom Header Styling */
+.react-datepicker__header--custom {
+  background-color: #1f2937 !important;
+  border-bottom: 1px solid var(--dp-border) !important;
+  padding: 12px 8px !important;
+}
+
+.custom-datepicker-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 4px !important;
+}
+
+.custom-header-button {
+  background: #374151 !important;
+  border: none !important;
+  color: var(--dp-accent) !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.custom-header-button:hover {
+  background: #4b5563 !important;
+  transform: scale(1.05) !important;
+}
+
+.custom-header-button:active {
+  transform: scale(0.95) !important;
+}
+
+.custom-header-selectors {
+  display: flex !important;
+  gap: 12px !important;
+}
+
+.custom-header-select {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  text-align: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.custom-header-select:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(178, 230, 66, 0.5) !important;
+}
+
+.custom-header-select option {
+  background: #111827 !important;
+  color: #fff !important;
+  padding: 8px !important;
+}
+@media (max-width: 480px) {
+  .custom-header-selectors {
+    gap: 4px !important;
+  }
+  .custom-header-select {
+    font-size: 0.82rem !important;
+    padding: 2px 4px !important;
+  }
+  .custom-header-button {
+    width: 28px !important;
+    height: 28px !important;
+  }
 }

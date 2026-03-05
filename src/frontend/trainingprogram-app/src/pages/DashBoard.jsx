@@ -6,13 +6,14 @@ import EmptyState from "./../components/ui/EmptyState";
 import CreatePlanButton from "../components/ui/CreatePlanButton";
 import ConfirmationModal from "../components/modals/ConfirmationModal";
 import EditPlanModal from "../components/modals/EditPlanModal";
+import CreatePlanModal from "../components/modals/CreatePlanModal";
 import { usePlans } from "../hooks/usePlans";
 import { format } from "date-fns";
 import { useHeader } from "../context/HeaderContext";
 
 
 function DashBoard({ session }) {
-  const { plans, loading, error, deletePlan, updatePlan } = usePlans(session);
+  const { plans, loading, error, deletePlan, updatePlan, fetchPlans } = usePlans(session);
   const { setTitle } = useHeader();
 
   useEffect(() => {
@@ -23,7 +24,8 @@ function DashBoard({ session }) {
   const [planToDelete, setPlanToDelete] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [planToEdit, setPlanToEdit] = useState(null);
-  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   const navigate = useNavigate();
 
   // 3. As funções de handle agora são simples "intermediários"
@@ -44,7 +46,7 @@ function DashBoard({ session }) {
   };
 
   const handleUpdatePlan = async (updatedData) => {
-    if(!planToEdit) return;
+    if (!planToEdit) return;
 
     const user = session?.user;
 
@@ -70,43 +72,52 @@ function DashBoard({ session }) {
 
   return (
     <>
-    {/* O conteúdo que antes estava dentro de <main> */}
-    {plans.length === 0 ? (
-      <EmptyState />
-    ) : (
-      <>
-        <div className="flex flex-col gap-6">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.Id}
-              year={plan.Year}
-              teamName={plan.TeamName}
-              coachName={plan.CoachName}
-              weekCount={plan.Microcycles ? plan.Microcycles.length : 0}
-              onDeleteClick={() => handleDeleteClick(plan)}
-              onEditClick={() => handleEditClick(plan)}
-              onCardClick={() => navigate(`/dashboard/${plan.Id}`)}
-            />
-          ))}
-        </div>
-        <CreatePlanButton />
-      </>
-    )}
+      {/* O conteúdo que antes estava dentro de <main> */}
+      {plans.length === 0 ? (
+        <EmptyState onCreateClick={() => setIsCreateModalOpen(true)} />
+      ) : (
+        <>
+          <div className="flex flex-col gap-6">
+            {plans.map((plan) => (
+              <PlanCard
+                key={plan.Id}
+                year={plan.Year}
+                teamName={plan.TeamName}
+                coachName={plan.CoachName}
+                weekCount={plan.Microcycles ? plan.Microcycles.length : 0}
+                onDeleteClick={() => handleDeleteClick(plan)}
+                onEditClick={() => handleEditClick(plan)}
+                onCardClick={() => navigate(`/dashboard/${plan.Id}`)}
+              />
+            ))}
+          </div>
+          <CreatePlanButton onClick={() => setIsCreateModalOpen(true)} />
+        </>
+      )}
 
-    <ConfirmationModal
-      isOpen={isDeleteModalOpen}
-      onClose={() => setIsDeleteModalOpen(false)}
-      onConfirm={handleConfirmDelete}
-      title="Confirm Deletion"
-      message={`Are you sure you want to delete the plan for the ${planToDelete?.Year} season? This action cannot be undone.`}
-    />
-    <EditPlanModal 
-      isOpen={isEditModalOpen}
-      onClose={() => setIsEditModalOpen(false)}
-      planData={planToEdit}
-      onSave={handleUpdatePlan}
-    />
-  </>
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Confirm Deletion"
+        message={`Are you sure you want to delete the plan for the ${planToDelete?.Year} season? This action cannot be undone.`}
+      />
+      <EditPlanModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        planData={planToEdit}
+        onSave={handleUpdatePlan}
+      />
+      <CreatePlanModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSave={() => {
+          setIsCreateModalOpen(false);
+          fetchPlans();
+        }}
+        session={session}
+      />
+    </>
   );
 }
 
