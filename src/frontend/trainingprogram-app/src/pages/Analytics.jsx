@@ -404,8 +404,8 @@ function Analytics({ session }) {
       let periodText = "Full Macrocycle";
       if (startDate || endDate) {
         try {
-          const startStr = startDate ? format(new Date(startDate + "T00:00:00"), "dd/MM/yyyy") : "...";
-          const endStr = endDate ? format(new Date(endDate + "T00:00:00"), "dd/MM/yyyy") : "...";
+          const startStr = startDate ? format(startDate instanceof Date ? startDate : new Date(startDate + "T00:00:00"), "dd/MM/yyyy") : "...";
+          const endStr = endDate ? format(endDate instanceof Date ? endDate : new Date(endDate + "T00:00:00"), "dd/MM/yyyy") : "...";
           periodText = `${startStr} - ${endStr}`;
         } catch (e) {
           console.error("Error formatting dates for PDF:", e);
@@ -859,7 +859,7 @@ function Analytics({ session }) {
                   <FontAwesomeIcon icon={faCalendarAlt} className="text-[#B2E642] text-xs" />
                   <span className="text-gray-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest">
                     {isFullPlanActive ? "Full Plan: " : "Analyzing: "}
-                    {startDate ? format(new Date(startDate + "T00:00:00"), "dd MMM yyyy") : "..."} - {endDate ? format(new Date(endDate + "T00:00:00"), "dd MMM yyyy") : "..."}
+                    {startDate ? format(startDate instanceof Date ? startDate : new Date(startDate + "T00:00:00"), "dd MMM yyyy") : "..."} - {endDate ? format(endDate instanceof Date ? endDate : new Date(endDate + "T00:00:00"), "dd MMM yyyy") : "..."}
                   </span>
                 </div>
               </div>
