@@ -1,11 +1,15 @@
 import { format } from "date-fns";
 import React from "react";
 import SessionList from "./SessionList";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFilePdf } from "@fortawesome/free-solid-svg-icons";
+import { generateDayPDF } from "../../utils/generateDayPDF";
 
 function DaySchedule({
   date,
   trainings,
   planId,
+  teamName,
   onCreateSession,
   onMarkAsRestDay,
   onRemoveRestDay,
@@ -19,7 +23,19 @@ function DaySchedule({
   return (
     <div className="flex flex-col gap-3 p-4 bg-[#1f2937] rounded-lg">
       <div className="flex justify-between items-center">
-        <h2 className="font-bold text-white">{format(date, "EEEE, M/d")}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-bold text-white">{format(date, "EEEE, M/d")}</h2>
+          {trainings.length > 0 && (
+            <button
+              onClick={() => generateDayPDF(date, trainings, teamName)}
+              className="text-[#B2E642] hover:text-white transition-colors flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              title="Baixar Plano do Dia (PDF)"
+            >
+              <FontAwesomeIcon icon={faFilePdf} />
+              <span>PDF</span>
+            </button>
+          )}
+        </div>
         <button
           onClick={() => onCreateSession(date)}
           className="text-[#B2E642] font-semibold text-sm hover:text-green-300"

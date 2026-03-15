@@ -17,6 +17,7 @@ function CreateActivityModal({
   const [categoryId, setCategoryId] = useState("");
   const [format, setFormat] = useState("Drill");
   const [duration, setDuration] = useState(15);
+  const [observations, setObservations] = useState("");
   const [error, setError] = useState(null);
 
   // Variation
@@ -66,6 +67,7 @@ function CreateActivityModal({
         setFormat(activityToEdit.Format);
         setCategoryId(activityToEdit.CategoryId || "");
         setDuration(activityToEdit.DurationMinutes);
+        setObservations(activityToEdit.Observations || "");
         setIsCombined(!!activityToEdit.CombinedGroupId);
         setCombinedWithIds([]);
       } else {
@@ -73,6 +75,7 @@ function CreateActivityModal({
         setCategoryId("");
         setExerciseId("");
         setDuration(15);
+        setObservations("");
         setSelectedVariation("");
         setAvailableVariations([]);
         setIsCombined(false);
@@ -194,6 +197,7 @@ function CreateActivityModal({
       CategoryId: categoryId,
       ExerciseId: exerciseId,
       Variation: selectedVariation || null,
+      Observations: observations || null,
       // CombinedGroupId is handled by parent for new activities
       _combinedWithIds: isCombined ? combinedWithIds : [],
       _isCombined: isCombined,
@@ -302,6 +306,19 @@ function CreateActivityModal({
               className="p-2 bg-[#303E52] mb-5"
               labelClassName="text-sm font-medium text-gray-400 mb-1"
               onChange={(e) => setDuration(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="observations" className="block text-sm font-medium text-gray-400 mb-1">
+              Observations / Notes
+            </label>
+            <textarea
+              id="observations"
+              value={observations}
+              onChange={(e) => setObservations(e.target.value)}
+              className="w-full bg-gray-700 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#B2E642] min-h-[80px] text-sm"
+              placeholder="Add any details or special instructions..."
             />
           </div>
 

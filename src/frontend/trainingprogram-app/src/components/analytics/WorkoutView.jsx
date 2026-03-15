@@ -8,8 +8,11 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { faFilePdf } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { supabase } from "../../config/supabaseClient";
 import { calcRealDuration, buildCategoryChartData } from "../../utils/calcRealDuration";
+import { generateDayPDF } from "../../utils/generateDayPDF";
 
 const COLORS = [
   "#B2E642", // Lime
@@ -26,7 +29,7 @@ const COLORS = [
   "#84cc16"  // Grass
 ];
 
-function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
+function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick, teamName, generatePDF }) {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [modalExerciseData, setModalExerciseData] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -123,14 +126,6 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
   const [categoryModalSessions, setCategoryModalSessions] = useState([]);
 
   const handleDayClick = (date, daySessions) => {
-    if (daySessions.length === 1) {
-      // Optional: If you want to skip modal for single session, uncomment below.
-      // However, user asked "queria q seja possivel ver todos" and "diga se foi quando foi o peridoo".
-      // Showing the modal always provides better context about the period even for 1 session.
-      // onWorkoutClick(daySessions[0]);
-      // return;
-    }
-
     if (daySessions.length > 0) {
       setSelectedDayDate(date);
       setDayModalSessions(daySessions);
@@ -163,30 +158,47 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
     setCategoryModalSessions([]);
   };
 
+  const handleGenerateMonthReport = () => {
+     if (generatePDF) {
+       const monthText = format(monthDate, "MMMM yyyy");
+       generatePDF(sessions, activities, monthText);
+     }
+  };
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6 w-full">
-      <div className="flex items-center gap-4 mb-4">
-        <button
-          onClick={onBack}
-          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
+      <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 w-fit flex-shrink-0 group"
           >
-            <path
-              fillRule="evenodd"
-              d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Back to Months
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="whitespace-nowrap">Back to Analytics</span>
+          </button>
+          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+            Works in {format(monthDate, "MMMM yyyy")}
+          </h2>
+        </div>
+
+        <button
+          onClick={handleGenerateMonthReport}
+          className="w-full md:w-auto flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-3 md:py-2.5 px-5 rounded-xl transition-all shadow-md active:scale-95"
+        >
+          <FontAwesomeIcon icon={faFilePdf} />
+          <span className="text-sm uppercase tracking-wider">Create Month Report</span>
         </button>
-        <h2 className="text-2xl font-bold text-white">
-          Works in {format(monthDate, "MMMM yyyy")}
-        </h2>
       </div>
 
       {loading && (
@@ -243,20 +255,18 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
               </div>
 
               {/* PieChart */}
-              <div className="h-80 sm:h-80 lg:h-96 min-h-[320px] sm:min-h-[320px] lg:min-h-[384px] overflow-visible">
+              <div className={`${isMobile ? 'h-80' : 'h-80 sm:h-80 lg:h-96'} w-full overflow-visible`}>
                 <ResponsiveContainer
                   width="100%"
                   height="100%"
-                  minWidth={0}
-                  minHeight={320}
                 >
-                  <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                     <Pie
                       data={categoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
+                      innerRadius={isMobile ? 50 : 60}
+                      outerRadius={isMobile ? 75 : 90}
                       fill="#8884d8"
                       paddingAngle={5}
                       dataKey="value"
@@ -285,12 +295,30 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                       itemStyle={{ color: "#fff" }}
                     />
                     {/* Legend */}
-                    <Legend
-                      wrapperStyle={{
-                        paddingTop: "20px",
-                      }}
-                      iconType="circle"
-                    />
+                    {isMobile ? (
+                      <Legend
+                        verticalAlign="bottom"
+                        align="center"
+                        iconType="circle"
+                        wrapperStyle={{
+                          paddingTop: "10px",
+                          fontSize: "11px",
+                          width: "100%",
+                        }}
+                        formatter={(value) => {
+                          const maxLength = 22;
+                          const displayName = value.length > maxLength ? value.substring(0, maxLength) + "..." : value;
+                          return <span className="text-gray-400 font-medium">{displayName}</span>;
+                        }}
+                      />
+                    ) : (
+                      <Legend
+                        wrapperStyle={{
+                          paddingTop: "20px",
+                        }}
+                        iconType="circle"
+                      />
+                    )}
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -562,8 +590,23 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3">
-                {dayModalSessions.map((session) => (
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => {
+                    const sessionsWithActivities = dayModalSessions.map(s => ({
+                      ...s,
+                      Activities: activities.filter(a => a.TrainingSessionId === s.Id)
+                    }));
+                    generateDayPDF(selectedDayDate, sessionsWithActivities, teamName);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold py-3 px-6 rounded-xl transition-all shadow-lg active:scale-95 mb-2"
+                >
+                  <FontAwesomeIcon icon={faFilePdf} className="text-lg" />
+                  <span>CREATE DAILY REPORT (PDF)</span>
+                </button>
+
+                <div className="flex flex-col gap-3">
+                  {dayModalSessions.map((session) => (
                   <div
                     key={session.Id}
                     onClick={() => {
@@ -590,13 +633,20 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                             .filter(a => a.TrainingSessionId === session.Id)
                             .slice(0, 3) // Preview first 3
                             .map(a => (
-                              <div key={a.Id} className="text-gray-300 text-sm flex justify-between">
-                                <span>
-                                  {a.Exercise?.Name || "Unkown Activity"}
-                                  {a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Variation})</span> :
-                                    (a.Exercise?.Combinations && !a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Exercise.Combinations})</span> : "")}
-                                </span>
-                                <span className="text-gray-500 text-xs">{a.DurationMinutes}m</span>
+                              <div key={a.Id} className="flex flex-col mb-1">
+                                <div className="text-gray-300 text-sm flex justify-between">
+                                  <span>
+                                    {a.Exercise?.Name || "Unkown Activity"}
+                                    {a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Variation})</span> :
+                                      (a.Exercise?.Combinations && !a.Variation ? <span className="text-gray-500 text-xs ml-1">({a.Exercise.Combinations})</span> : "")}
+                                  </span>
+                                  <span className="text-gray-500 text-xs">{a.DurationMinutes}m</span>
+                                </div>
+                                {a.Observations && (
+                                  <p className="text-[10px] text-gray-500 italic truncate pl-2 border-l border-gray-700">
+                                    {a.Observations}
+                                  </p>
+                                )}
                               </div>
                             ))
                           }
@@ -624,6 +674,7 @@ function WorkoutView({ sessions, monthDate, onBack, onWorkoutClick }) {
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           </div>

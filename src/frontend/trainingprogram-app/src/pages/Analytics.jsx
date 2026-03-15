@@ -392,17 +392,20 @@ function Analytics({ session }) {
     setModalCategoryData(null);
   };
 
-  const generatePDF = () => {
+  const generatePDF = (customSessions = null, customActivities = null, customPeriodText = null) => {
     try {
       const doc = new jsPDF();
       const currentPlan = plans.find((p) => p.Id === selectedPlanId);
       const teamName = currentPlan?.TeamName || "Unknown Team";
       const year = currentPlan?.Year || "Unknown Year";
-      const timestamp = format(new Date(), "dd/MM/yyyy HH:mm");
+      const timestamp = format(new Date(), "MM/dd/yyyy HH:mm");
+
+      const targetSessions = customSessions || filteredSessions;
+      const targetActivities = customActivities || filteredActivities;
 
       // Filtered range text
-      let periodText = "Full Macrocycle";
-      if (startDate || endDate) {
+      let periodText = customPeriodText || "Full Macrocycle";
+      if (!customPeriodText && (startDate || endDate)) {
         try {
           const startStr = startDate ? format(startDate instanceof Date ? startDate : new Date(startDate + "T00:00:00"), "dd/MM/yyyy") : "...";
           const endStr = endDate ? format(endDate instanceof Date ? endDate : new Date(endDate + "T00:00:00"), "dd/MM/yyyy") : "...";
@@ -428,11 +431,15 @@ function Analytics({ session }) {
       doc.setTextColor(100);
       doc.text(`Generated: ${timestamp}`, 14, 48);
 
+      const totalSessions = targetSessions.length;
+      const totalDuration = calcRealDuration(targetActivities);
+      const uniqueDaysCount = new Set(targetSessions.map((s) => s.Date.split("T")[0])).size;
+
       // 1. Overall Summary
       autoTable(doc, {
         startY: 55,
         head: [["Period Total Sessions", "Period Total Days", "Period Total Minutes"]],
-        body: [[planTotalSessions, planUniqueDaysCount, `${planTotalDuration} min`]],
+        body: [[totalSessions, uniqueDaysCount, `${totalDuration} min`]],
         theme: 'grid',
         headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
       });
@@ -442,10 +449,11 @@ function Analytics({ session }) {
       doc.setTextColor(31, 41, 55);
       doc.text("Category Distribution", 14, doc.lastAutoTable.finalY + 15);
 
-      const catSummaryBody = planChartData.map(cat => [
+      const summaryChartData = buildCategoryChartData(targetActivities);
+      const catSummaryBody = summaryChartData.map(cat => [
         cat.name,
         `${cat.value} min`,
-        planTotalDuration > 0 ? `${((cat.value / planTotalDuration) * 100).toFixed(1)}%` : "0%"
+        totalDuration > 0 ? `${((cat.value / totalDuration) * 100).toFixed(1)}%` : "0%"
       ]);
 
       autoTable(doc, {
@@ -456,74 +464,76 @@ function Analytics({ session }) {
         headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
       });
 
-      // 3. Aggregate Data by Month
-      const monthsData = {};
-      const sortedFilteredSessions = [...filteredSessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+      // 3. Aggregate Data by Month (ONLY FOR MACRO REPORTS)
+      const isCustomPeriod = !!customPeriodText;
 
-      sortedFilteredSessions.forEach(session => {
-        if (!session.Date) return;
-        const dateOnly = session.Date.split("T")[0];
-        const date = new Date(dateOnly + "T00:00:00");
-        if (isNaN(date.getTime())) return;
-
-        const monthKey = format(date, "MMMM yyyy");
-        const monthSort = date.getFullYear() * 12 + date.getMonth();
-        if (!monthsData[monthKey]) {
-          monthsData[monthKey] = { name: monthKey, sort: monthSort, sessionCount: 0, totalMinutes: 0, categories: {} };
-        }
-        monthsData[monthKey].sessionCount++;
-        const sessionActivities = filteredActivities.filter(a => a.TrainingSessionId === session.Id);
-        monthsData[monthKey].totalMinutes += calcRealDuration(sessionActivities);
-        buildCategoryChartData(sessionActivities).forEach(cat => {
-          if (!monthsData[monthKey].categories[cat.name]) monthsData[monthKey].categories[cat.name] = 0;
-          monthsData[monthKey].categories[cat.name] += cat.value;
-        });
-      });
-
-      const sortedMonths = Object.values(monthsData).sort((a, b) => a.sort - b.sort);
-      const masterTableBody = sortedMonths.map(m => [
-        m.name,
-        m.sessionCount,
-        `${m.totalMinutes} min`,
-        Object.entries(m.categories).sort(([, a], [, b]) => b - a).map(([name, mins]) => `${name}: ${mins}min`).join('\n')
-      ]);
-
-      let currentY = doc.lastAutoTable.finalY;
-      if (currentY > 200) {
+      if (!isCustomPeriod) {
         doc.addPage();
-        currentY = 22;
-      } else {
-        currentY += 10;
+        doc.setFontSize(18);
+        doc.setTextColor(31, 41, 55);
+        doc.text("Training Performance by Month", 14, 20);
+
+        const monthsData = {};
+        const sortedFilteredSessions = [...targetSessions].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+        sortedFilteredSessions.forEach(session => {
+          if (!session.Date) return;
+          const dateOnly = session.Date.split("T")[0];
+          const date = new Date(dateOnly + "T00:00:00");
+          if (isNaN(date.getTime())) return;
+
+          const monthKey = format(date, "MMMM yyyy");
+          const monthSort = date.getFullYear() * 12 + date.getMonth();
+          if (!monthsData[monthKey]) {
+            monthsData[monthKey] = { name: monthKey, sort: monthSort, sessionCount: 0, totalMinutes: 0, categories: {} };
+          }
+          monthsData[monthKey].sessionCount++;
+          const sessionActivities = targetActivities.filter(a => a.TrainingSessionId === session.Id);
+          monthsData[monthKey].totalMinutes += calcRealDuration(sessionActivities);
+          buildCategoryChartData(sessionActivities).forEach(cat => {
+            if (!monthsData[monthKey].categories[cat.name]) monthsData[monthKey].categories[cat.name] = 0;
+            monthsData[monthKey].categories[cat.name] += cat.value;
+          });
+        });
+
+        const sortedMonths = Object.values(monthsData).sort((a, b) => a.sort - b.sort);
+        const masterTableBody = sortedMonths.map(m => [
+          m.name,
+          m.sessionCount,
+          `${m.totalMinutes} min`,
+          Object.entries(m.categories).sort(([, a], [, b]) => b - a).map(([name, mins]) => `${name}: ${mins}min`).join('\n')
+        ]);
+
+        autoTable(doc, {
+          startY: 27, // Adjusted startY for the new page
+          head: [["Month", "Sessions", "Total Time", "Category Breakdown (Duration)"]],
+          body: masterTableBody,
+          theme: 'grid',
+          headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold', valign: 'middle' },
+          styles: { fontSize: 10, cellPadding: 4, valign: 'middle' },
+          columnStyles: { 3: { cellWidth: 'auto', fontSize: 9 } }
+        });
       }
 
-      doc.setFontSize(16);
-      doc.setTextColor(31, 41, 55);
-      doc.text("Training Performance by Month", 14, currentY);
 
-      autoTable(doc, {
-        startY: currentY + 7,
-        head: [["Month", "Sessions", "Total Time", "Category Breakdown (Duration)"]],
-        body: masterTableBody,
-        theme: 'grid',
-        headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 4 },
-        columnStyles: { 3: { cellWidth: 'auto', fontSize: 9 } }
-      });
-
-      // 4. Exercise Performance Ranking
-      const exerciseMinutes = {};
-      filteredActivities.forEach(a => {
+      // 4. Exercise Performance Ranking (GROUPED BY CATEGORY)
+      const groupedRanking = {};
+      targetActivities.forEach(a => {
+        const catName = a.Category?.Name || "Other";
         const name = a.Exercise?.Name || "Activity";
         const variation = a.Variation || a.Exercise?.Combinations || "";
         const fullName = variation ? `${name} (${variation})` : name;
-        if (!exerciseMinutes[fullName]) exerciseMinutes[fullName] = 0;
-        exerciseMinutes[fullName] += (a.DurationMinutes || 0);
+        
+        if (!groupedRanking[catName]) {
+          groupedRanking[catName] = { exercises: {}, total: 0 };
+        }
+        if (!groupedRanking[catName].exercises[fullName]) {
+          groupedRanking[catName].exercises[fullName] = 0;
+        }
+        const mins = (a.DurationMinutes || 0);
+        groupedRanking[catName].exercises[fullName] += mins;
+        groupedRanking[catName].total += mins;
       });
-
-      const rankedExercises = Object.entries(exerciseMinutes)
-        .sort(([, a], [, b]) => b - a)
-        .filter(([, mins]) => mins > 0)
-        .map(([name, mins]) => [name, `${mins} min`]);
 
       let finalY = doc.lastAutoTable.finalY + 10;
       if (finalY > 240) {
@@ -536,14 +546,37 @@ function Analytics({ session }) {
       doc.text("Exercise Volume Ranking", 14, finalY);
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text("Total minutes per exercise within selected period.", 14, finalY + 5);
+      doc.text("Grouped by category blocks with total accumulated time.", 14, finalY + 5);
 
-      autoTable(doc, {
-        startY: finalY + 10,
-        head: [["Exercise / Activity", "Total Accumulated Time"]],
-        body: rankedExercises,
-        theme: 'striped',
-        headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+      let currentTableY = finalY + 10;
+
+      Object.entries(groupedRanking).forEach(([category, data]) => {
+        const catBody = Object.entries(data.exercises)
+          .sort(([, a], [, b]) => b - a)
+          .map(([name, time]) => [
+            { content: name, styles: { cellPadding: { left: 10 } } },
+            { content: `${time} min`, styles: { halign: 'center' } }
+          ]);
+
+        autoTable(doc, {
+          startY: currentTableY,
+          head: [[
+            { content: category, styles: { halign: 'left' } },
+            { content: `Total: ${data.total} min`, styles: { halign: 'right' } }
+          ]],
+          body: catBody,
+          theme: 'striped',
+          headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold', valign: 'middle' },
+          styles: { fontSize: 10, cellPadding: 3, valign: 'middle' },
+          columnStyles: {
+            0: { cellWidth: 'auto' },
+            1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' }
+          },
+          margin: { bottom: 5 },
+          pageBreak: 'avoid'
+        });
+
+        currentTableY = doc.lastAutoTable.finalY + 5;
       });
 
       doc.save(`Training_Report_${teamName}_${periodText.replace(/\//g, '-')}.pdf`);
@@ -618,9 +651,10 @@ function Analytics({ session }) {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 pb-20 flex flex-col gap-4 sm:gap-6">
-      {/* Plan Selector & Header */}
-      <div className="flex flex-col gap-4 bg-[#1f2937] p-4 sm:p-5 rounded-xl border border-gray-700 shadow-lg">
-        <div className="md:flex md:items-end justify-between gap-4">
+      {/* Plan Selector & Header - Hide in drill-down views */}
+      {viewMode === VIEW_MODES.MONTHS && (
+        <div className="flex flex-col gap-4 bg-[#1f2937] p-4 sm:p-5 rounded-xl border border-gray-700 shadow-lg">
+          <div className="md:flex md:items-end justify-between gap-4">
           <div className="flex flex-col flex-1 gap-1.5 mb-4 md:mb-0">
             <label className="text-gray-400 font-bold text-sm uppercase tracking-widest ml-1">Plan:</label>
             <select
@@ -842,6 +876,7 @@ function Analytics({ session }) {
           )
         )}
       </div>
+    )}
 
       {loading && (
         <div className="text-center text-[#B2E642]">Loading data...</div>
@@ -990,6 +1025,8 @@ function Analytics({ session }) {
               monthDate={selectedMonthDate}
               onBack={handleBackToMonths}
               onWorkoutClick={handleWorkoutClick}
+              teamName={currentPlan?.TeamName}
+              generatePDF={generatePDF}
             />
           )}
 
@@ -997,6 +1034,7 @@ function Analytics({ session }) {
             <ActivityView
               session={selectedSession}
               onBack={handleBackToWorkouts}
+              teamName={currentPlan?.TeamName}
             />
           )}
         </>

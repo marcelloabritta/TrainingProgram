@@ -63,6 +63,11 @@ function ActivityList({ activity, onDelete, onEdit, combinedWith = [] }) {
               {activity.Variation || activity.Exercise.Combinations}
             </p>
           )}
+          {activity.Observations && (
+            <p className="text-sm text-gray-300 mt-2 bg-black/10 p-2 rounded border-l-2 border-[#B2E642]">
+              {activity.Observations}
+            </p>
+          )}
           {isCombined && combinedWith.length > 0 && (
             <div className="flex items-center gap-1 mt-1">
               <span className="text-[10px] bg-[#B2E642]/15 text-[#B2E642] rounded px-1.5 py-0.5 font-semibold tracking-wide">

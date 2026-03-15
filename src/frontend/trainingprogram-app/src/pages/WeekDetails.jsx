@@ -33,7 +33,7 @@ function WeekDetails({ session }) {
         setLoading(true);
         const { data, error } = await supabase
           .from("Microcycles")
-          .select("*, TrainingSessions(*, Activities(*))")
+          .select("*, Macrocycles(TeamName), TrainingSessions(*, Activities(*, Category:Categories(Name), Exercise:Exercises(Name, Combinations)))")
           .eq("MacrocycleId", planId)
           .eq("WeekNumber", weekNumber)
           .single();
@@ -192,6 +192,7 @@ function WeekDetails({ session }) {
             isWeekPlanned={isWeekPlanned}
             userId={userId}
             microcycleId={microcycleId}
+            teamName={week?.Macrocycles?.TeamName}
             onCreateSession={handleOpenCreateSessionModal}
             onMarkAsRestDay={handleMarkAsRestDay}
             onRemoveRestDay={handleRemoveRestDay}
