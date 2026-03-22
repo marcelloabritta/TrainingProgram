@@ -79,7 +79,44 @@ export const generateDayPDF = (date, sessions, teamName = "Training") => {
 
     doc.setFontSize(16);
     doc.setTextColor(31, 41, 55);
-    doc.text("2. Activity Summary (Grouped by Category)", 14, currentY);
+    doc.text("2. Match Summary", 14, currentY);
+
+    // Count matches
+    let friendlyMatches = 0;
+    let officialMatches = 0;
+
+    sessions.forEach(session => {
+        if (!session.IsRestDay) {
+            (session.Activities || []).forEach(act => {
+                const catName = (act.Category?.Name || "").toLowerCase();
+                if (catName.includes("friendly") || catName.includes("amistoso")) {
+                    friendlyMatches++;
+                } else if (catName.includes("official") || catName.includes("oficial") || catName.includes("tournament") || catName.includes("torneio")) {
+                    officialMatches++;
+                }
+            });
+        }
+    });
+
+    autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Friendly Matches", "Official Matches"]],
+        body: [[friendlyMatches, officialMatches]],
+        theme: 'grid',
+        headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
+        styles: { halign: 'center' },
+        margin: { bottom: 10 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 15;
+    if (currentY > 230) {
+        doc.addPage();
+        currentY = 20;
+    }
+
+    doc.setFontSize(16);
+    doc.setTextColor(31, 41, 55);
+    doc.text("3. Activity Summary (Grouped by Category)", 14, currentY);
 
     // Group activities: { Category: { exercises: {}, total: 0 } }
     const groupedData = {};

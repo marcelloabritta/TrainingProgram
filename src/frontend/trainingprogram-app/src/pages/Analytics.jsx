@@ -400,8 +400,8 @@ function Analytics({ session }) {
       const year = currentPlan?.Year || "Unknown Year";
       const timestamp = format(new Date(), "MM/dd/yyyy HH:mm");
 
-      const targetSessions = customSessions || filteredSessions;
-      const targetActivities = customActivities || filteredActivities;
+      const targetSessions = Array.isArray(customSessions) ? customSessions : filteredSessions;
+      const targetActivities = Array.isArray(customActivities) ? customActivities : filteredActivities;
 
       // Filtered range text
       let periodText = customPeriodText || "Full Macrocycle";
@@ -435,11 +435,34 @@ function Analytics({ session }) {
       const totalDuration = calcRealDuration(targetActivities);
       const uniqueDaysCount = new Set(targetSessions.map((s) => s.Date.split("T")[0])).size;
 
+      // Category counts for matches
+      const categoryCounts = targetActivities.reduce((acc, a) => {
+        const cat = a.Category?.Name || "Other";
+        acc[cat] = (acc[cat] || 0) + 1;
+        return acc;
+      }, {});
+
+      const friendlyMatches = Object.entries(categoryCounts).reduce((total, [name, count]) => {
+        const lower = name.toLowerCase();
+        if (lower.includes("friendly") || lower.includes("amistoso")) {
+            return total + count;
+        }
+        return total;
+      }, 0);
+
+      const officialMatches = Object.entries(categoryCounts).reduce((total, [name, count]) => {
+        const lower = name.toLowerCase();
+        if (lower.includes("official") || lower.includes("oficial") || lower.includes("tournament") || lower.includes("torneio")) {
+            return total + count;
+        }
+        return total;
+      }, 0);
+
       // 1. Overall Summary
       autoTable(doc, {
         startY: 55,
-        head: [["Period Total Sessions", "Period Total Days", "Period Total Minutes"]],
-        body: [[totalSessions, uniqueDaysCount, `${totalDuration} min`]],
+        head: [["Sessions", "Training Days", "Total Duration", "Friendly Match", "Official Match"]],
+        body: [[totalSessions, uniqueDaysCount, `${totalDuration} min`, friendlyMatches, officialMatches]],
         theme: 'grid',
         headStyles: { fillColor: [178, 230, 66], textColor: [0, 0, 0], fontStyle: 'bold' },
       });
@@ -452,13 +475,14 @@ function Analytics({ session }) {
       const summaryChartData = buildCategoryChartData(targetActivities);
       const catSummaryBody = summaryChartData.map(cat => [
         cat.name,
+        categoryCounts[cat.name] || 0,
         `${cat.value} min`,
         totalDuration > 0 ? `${((cat.value / totalDuration) * 100).toFixed(1)}%` : "0%"
       ]);
 
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 22,
-        head: [["Category", "Total Duration", "Percentage"]],
+        head: [["Category", "Count", "Total Duration", "Percentage"]],
         body: catSummaryBody,
         theme: 'striped',
         headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
@@ -673,7 +697,7 @@ function Analytics({ session }) {
           <div className="flex items-center gap-2 h-full min-h-[50px]">
             {/* Desktop primary button */}
             <button
-              onClick={generatePDF}
+              onClick={() => generatePDF()}
               className="hidden sm:flex flex-1 sm:flex-none items-center justify-center gap-2 bg-[#B2E642] hover:bg-[#a1d13b] text-black font-bold h-[50px] px-8 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-[#B2E642]/10"
               title="Generate PDF Report"
             >
